@@ -1,0 +1,28 @@
+{
+ "_readme": "Default shipped state: an EMPTY room. Never ship a populated verdict — a new install would open on a stranger's case. The sitting flow overwrites this file; the four states are empty | convening | reading | verdict.",
+ "state": "empty",
+ "chair": "blount",
+ "elected": {
+  "for": 0,
+  "against": 0
+ },
+ "question": {
+  "headline": "",
+  "convening_headline": "The board is convening…",
+  "asked_label": "You asked",
+  "asked": ""
+ },
+ "empty": {
+  "headline": "What's the sales problem?",
+  "qask_label": "The bench",
+  "qask": "Eight advisers · every quote real and deep-linked · one verdict you can act on today",
+  "cases_label": "The kind of decision the board rules on",
+  "cases": [
+   "\"Champion insists he has authority, but every answer needs 'checking with the team.' Take him at his word or ask who really decides?\"",
+   "\"My guarantee is scaring off buyers who assume it means the product's weak. Cut it or explain it better?\"",
+   "\"Deal's been verbally agreed for a week with no signature. Call and ask for it directly or send a gentle nudge email?\"",
+   "\"Large deal, four meetings in, and I still haven't asked what happens if they do nothing. Ask it cold in meeting five or ease in?\"",
+   "\"A prospect said 'call me anytime' three calls ago, then went quiet. Do I take him literally or read the silence?\""
+  ]
+ }
+}

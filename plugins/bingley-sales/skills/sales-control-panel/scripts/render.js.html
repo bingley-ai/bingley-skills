@@ -1,0 +1,1253 @@
+<script id="scp-render">
+(function(){
+  var D = window.SCP_DATA || {};
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function escA(s){return esc(s).replace(/"/g,'&quot;');}
+  function fmt(n){if(n==null)return '';var a=Math.abs(n);if(a>=1e6){var m=n/1e6;return '£'+(m%1===0?m.toFixed(0):m.toFixed(1))+'m';}if(a>=1e3){var k=n/1e3;return '£'+(k%1===0?k.toFixed(0):k.toFixed(1))+'k';}return '£'+Math.round(n).toLocaleString('en-GB');}
+  var $=function(s,r){return (r||document).querySelector(s);};
+  function empty(t){return '<div class="scp-empty">'+esc(t)+'</div>';}
+
+  // ---- diff band (v5) ----
+  // null-safe: no band when D.diff is null. Counts come from array lengths only,
+  // never hardcoded; each segment shows its first entry as the example.
+  function diffBandHtml(){
+    var d=D.diff;
+    if(!d) return '';
+    // THE VOCABULARY WAS THE BUG. "2 new / 3 moved on / 2 slipped / 1 gone" are counts of rows in a
+    // diff, and nobody manages rows — "2 new WHAT?" is the correct first reaction and was every
+    // reader's. Worse than unclear, two of them were dangerous:
+    //   "moved on" — in sales English that means the CUSTOMER WALKED. It sat one segment from
+    //                "1 gone" and actually meant a deal ADVANCED a stage. Best news on the band,
+    //                read as the worst.
+    //   "gone"     — reads as LOST. It means absent from the export: a data event, not a sales
+    //                event, and conflating those two is the exact class of lie this panel exists
+    //                to prevent.
+    // Every segment now carries a noun, a direction, and a name: what happened, to whom.
+    var nw=d['new']||[], mv=d.moved||[], sl=d.slipped||[], gn=d.gone||[];
+    var segs=[];
+    // THE NAME IS THE EVIDENCE, so the label must not eat it. Spelling the labels out in full
+    // ("2 close dates pushed back") bought clarity and spent the very pixels the names needed —
+    // measured: "Matt Do…", "M.", "N". A segment that truncates its own subject has said nothing.
+    // These are the shortest forms that still carry a noun and a direction.
+    // THREE SEGMENTS, NOT FOUR. Measured: at four, every single segment ellipsed its own name —
+    // "Matt Do…", "M.", "N". The band is ~790px once the label and link are paid for; a name needs
+    // ~250px to survive. Four is arithmetic that doesn't close, however the labels are worded.
+    // So the band keeps the two changes that COST you (a date slipping, a deal leaving the file)
+    // and the one that PAYS you (a deal advancing) — the good news stays, or the band is a
+    // permanent complaint. New deals fold into the link: they are already visible in the pipeline
+    // below, and a new row is the one change nobody has to act on this morning.
+    // 17 JUL — THE BAND IS NOW A FOOTNOTE IN THE RAIL, AND THE NAMES COME OFF.
+    // The 48px full-width band spent its width on ONE name per segment ("Helen Dale → Demo") and
+    // then said "Full changes →" — so it showed a third of the evidence and linked to all of it.
+    // A sample is not evidence; it is the loudest of three facts pretending to be the whole set.
+    // In a 372px rail there is no room to pretend: counts + nouns, and the door to the rest. The
+    // names live one click away, ALL of them, which is where they were always kept anyway.
+    if(mv.length) segs.push('<b class="dc-moved">'+mv.length+'</b> advanced');
+    if(sl.length) segs.push('<b class="dc-slip">'+sl.length+'</b> slipped');
+    if(gn.length) segs.push('<b class="dc-gone">'+gn.length+'</b> left the file');
+    if(nw.length) segs.push('<b class="dc-new">'+nw.length+'</b> new');
+    if(!segs.length) segs.push('<span class="scp-muted">nothing changed</span>');
+    // D5: qualify the raw new/gone counts when some pairs look re-keyed (not real churn).
+    var rk=(d.rekey&&d.rekey.length)?d.rekey.length:0;
+    if(rk) segs.push('<span class="scp-muted">'+rk+' possible re-key'+(rk>1?'s':'')+' · net '+d.real_new+'/'+d.real_gone+'</span>');
+    // "SINCE / Sat 11 Jul's file" made the reader do archaeology on their own export history.
+    return '<div class="diff-band click" data-open="diff">'+
+      '<div class="diff-label">Since '+(d.since?esc(d.since):'your last file')+'</div>'+
+      '<div class="diff-counts">'+segs.join('<i>·</i>')+' <span class="diff-link">→</span></div></div>';
+  }
+  function diffModalBody(){
+    var d=D.diff||{};
+    // the empty case first: it used to build every band and then throw the lot away.
+    if(!(d['new']||[]).length&&!(d.moved||[]).length&&!(d.slipped||[]).length&&!(d.gone||[]).length){
+      return rec([// d.since reads "Sat 11 Jul's file" (the diff band's own label, frozen by the battery).
+      // Spliced straight into a sentence it reads like a developer wrote it, so the date is
+      // lifted out and the sentence built around it.
+      recScope('Since your last export'+(d.since?' · '+esc(String(d.since).replace(/[’']s file$/,'')):'')),
+                  note('Nothing changed since the last run.')]);
+    }
+    // a list band: label + full-width rows. Full-width because these lines are sentences
+    // ("Kemble Partners · Demo → Negotiation"), not a name/days/amount table.
+    function group(title, arr, fn){
+      if(!arr||!arr.length) return '';
+      return '<div><div class="scp-lbl">'+esc(title)+'</div><div class="scp-drows">'+
+        arr.map(function(x){return '<div class="scp-drow scp-wide"><span>'+fn(x)+'</span></div>';}).join('')+'</div></div>';
+    }
+    var bands=[
+      // d.since reads "Sat 11 Jul's file" (the diff band's own label, frozen by the battery).
+      // Spliced straight into a sentence it reads like a developer wrote it, so the date is
+      // lifted out and the sentence built around it.
+      recScope('Since your last export'+(d.since?' · '+esc(String(d.since).replace(/[’']s file$/,'')):'')),
+      // all FOUR counters. "Gone" is a deal that vanished from the export — the most consequential
+      // change on the panel, and the one a 3-column rule silently dropped.
+      facts([
+        fact('New', String((d['new']||[]).length)),
+        fact('Moved on', String((d.moved||[]).length)),
+        fact('Slipped', String((d.slipped||[]).length)),
+        fact('Gone', String((d.gone||[]).length))
+      ]),
+      group('New', d['new'], function(x){return esc(x.name)+(x.value!=null?' · '+fmt(x.value):'');}),
+      group('Moved on', d.moved, function(x){
+        var canon=(x.from_canon&&x.to_canon&&(esc(x.from_canon)!==esc(x.from)||esc(x.to_canon)!==esc(x.to)))?' <span class="scp-muted">('+esc(x.from_canon)+' → '+esc(x.to_canon)+')</span>':'';
+        return esc(x.name)+' · '+esc(x.from)+' → '+esc(x.to)+canon;}),
+      group('Slipped', d.slipped, function(x){return esc(x.name)+' · '+esc(x.from)+' → '+esc(x.to);}),
+      group('Gone', d.gone, function(x){return esc(x.name)+' · '+esc(x.outcome);})
+    ];
+    if(d.rekey&&d.rekey.length){
+      bands.push(group('Looks re-keyed (not real churn)', d.rekey, function(x){
+        return esc(x.name)+(x.company?' · '+esc(x.company):'')+(x.value!=null?' · '+fmt(x.value):'');}));
+      bands.push(note('Net real churn: <b>'+d.real_new+' new / '+d.real_gone+' gone</b>. The rest look like the same deals under new ids.'));
+    }
+    return rec(bands);
+  }
+
+  // ==== THE HERO: four zones, four questions, in the order a rep asks them ====
+  //   1. can I trust this?        the receipt + the one chip that gates it
+  //   2. what do I do first?      the verdict, with its working shown
+  //   3. what's the risk?         concentration — a problem, not a statistic
+  //   4. what changed?           the movement band, in money
+  // It was: a greeting, a line about the software, four stats, an unwired search box, a dead feed,
+  // and four counts of rows in a diff. Nothing in that list answered a question a rep was asking.
+  // ==== 17 JUL: THE HERO IS TWO COLUMNS — HE TALKS, THE FLAGS SIT STILL ====
+  // The four-zone hero was right about WHAT the card owes a rep and wrong about how a card is read.
+  // Stacked full-width, every zone was a peer of every other: greeting, receipt, chip row, verdict,
+  // risk line, diff band — six bands of ink across 1048px, each in its own register, three of them
+  // shouting a number. Looked at, not read: you could not tell what the card was FOR.
+  // So the card is now a person talking, and a margin of flags:
+  //   LEFT   Bingley says it, in one sentence, the way he says it out loud. Prose has a reading
+  //          order built in — a stack of bands does not.
+  //   RIGHT  the three things that are true whether or not you read the sentence, one line each,
+  //          a dot and some words. Sparse ON PURPOSE: this rail's value is that a new flag here
+  //          is visible. Fill it and it becomes wallpaper, which is what the chip row became.
+  // Nothing was deleted to make room — the facts are the same facts. They are said once, in the
+  // register that suits them: a decision is a sentence, a status is a flag.
+  function renderHero(){
+    var el=$('.hero'); if(!el) return;
+    el.innerHTML='<div class="hero-say">'+
+        '<h1>Morning, '+esc(D.name||'there')+'.</h1>'+
+        narrationHtml()+
+        receiptHtml()+
+      '</div>'+
+      '<div class="hero-rail">'+flagsHtml()+diffBandHtml()+'</div>';
+  }
+
+  // ---- LEFT: the narration. One sentence, every clause a field off the file. ----
+  // THE RULE THAT MAKES THIS SAFE: prose is the most persuasive object on the panel, so it gets the
+  // least licence. Not one word here is written by the panel about the panel — it is the plan count,
+  // the deal, its value, its stage age and the diary, in the order Bingley says them. If a fact is
+  // missing its clause disappears; the sentence never reaches for a filler to keep its rhythm.
+  // (What is NOT here: "but 3 that truly matter". There is no such number in the file. The plan has
+  // a rank, not a cut-off, and inventing one to make the line sing is exactly how a panel starts
+  // lying beautifully.)
+  function narrationHtml(){
+    var m=D.move, parts=[];
+    var total=(D.plan_total!=null?D.plan_total:(D.plan||[]).length);
+    if(total) parts.push('<b>'+total+'</b> on the list today.');
+    if(m&&m.name){
+      var lead='First, <b>'+esc(m.name)+'</b>';
+      // "your £28k whale" only when the FILE calls him a whale. Never a flourish.
+      if(m.value) lead+=(m.whale?' — your '+esc(m.value)+' whale':' — '+esc(m.value)+', '+esc(m.stage||''));
+      else if(m.stage) lead+=' — '+esc(m.stage);
+      var tail=[];
+      if(m.days!=null) tail.push('silent '+m.days+' day'+(m.days===1?'':'s'));
+      if(m.mtg) tail.push('and he\'s in your diary at '+esc(m.mtg));
+      parts.push(lead+(tail.length?', '+tail.join(', '):'')+'.');
+    }
+    if(!parts.length) return '';
+    return '<p class="say">'+parts.join(' ')+'</p>';
+  }
+
+  // ---- RIGHT: the flags. A dot, a number, a noun. No verdicts, no ratios. ----
+  function flagsHtml(){
+    var ins=D.insights||{}, f='';
+    // scp-f-red / scp-f-amber, NOT red / amber. The shell paints `.red{background:var(--red)}` for
+    // its bullet dots, and a bare modifier inside .stage hits it: the overdue flag rendered as a
+    // full-width RED BAR across the rail, with the text knocked out white. Caught on a screenshot,
+    // and it is LAYOUT-CONTRACT §6 exactly — every class this renderer invents inside the stage is
+    // prefixed, or it collides with the Desk's own vocabulary.
+    var ic=D.issue_chip;
+    if(ic){
+      f+='<div class="flag click scp-issue-chip-lite '+(ic.level==='blocker'?'scp-f-red':'scp-f-amber')+'" data-open="issues">'+
+        '<span class="fdot"></span><span><b>'+ic.count+'</b> thing'+(ic.count>1?'s need':' needs')+' your eyes →</span></div>';
+    }
+    f+='<div class="flag'+((ins.overdue||0)>0?' scp-f-red':'')+'"><span class="fdot"></span><span><b>'+(ins.overdue||0)+'</b> promises overdue</span></div>';
+    // the concentration line, demoted to a flag: it was a 14px sentence competing with the verdict
+    // above it for the same eye. Money + a count, still no ratio (see build_panel.py — at_risk is
+    // RAW and pipeline_total is WEIGHTED, and dividing them was the false 64% this panel shipped).
+    var c=D.concentration;
+    if(c) f+='<div class="flag cold"><span class="fdot"></span><span><b>'+esc(c.at_risk)+'</b> gone cold · '+c.count+' deal'+(c.count===1?'':'s')+'</span></div>';
+    else if(ins.at_risk==='unconfirmed')
+      f+='<div class="flag click" data-open="issues"><span class="fdot"></span><span><span class="scp-unconf">unconfirmed</span> at risk</span></div>';
+    return f;
+  }
+
+  // ---- 1. the receipt: which file, how much of it survived, how old ----
+  function receiptHtml(){
+    var r=D.receipt; if(!r||!r.file) return '';
+    var bits=[esc(r.file)];
+    if(r.rows_in!=null) bits.push(r.rows_in+' row'+(r.rows_in===1?'':'s')+' read'+(r.kept!=null&&r.kept!==r.rows_in?' · '+r.kept+' kept':''));
+    // an export the rep took days ago is a different product from a live one, and the panel has
+    // never said so. The age is the point, not the date.
+    if(r.exported){
+      var d=new Date(r.exported+'T00:00:00'), t=new Date((D.date_iso||r.exported)+'T00:00:00');
+      var n=Math.round((t-d)/86400000);
+      if(!isNaN(n)&&n>0) bits.push('exported '+(n===1?'yesterday':n+' days ago'));
+    }
+    return '<p class="receipt">'+bits.join(' · ')+'</p>';
+  }
+
+  // ---- 2. the one move: a verdict, with its working shown so you can overrule it ----
+  function moveHtml(){
+    var m=D.move; if(!m||!m.name) return '';
+    return '<p class="move"><b>Start with '+esc(m.name)+'.</b>'+(m.why?' <span>'+esc(m.why)+'</span>':'')+'</p>';
+  }
+
+  // ---- 3. the risk, as a problem rather than a statistic ----
+  function concentrationHtml(){
+    var c=D.concentration; if(!c) return '';
+    // a count against a count — never a money figure against a differently-weighted money figure
+    var lead=esc(c.at_risk)+' has gone cold';
+    var tail=c.count+(c.of_count?' of your '+c.of_count:'')+' open deal'+(c.count===1&&!c.of_count?'':'s')+', untouched';
+    if(c.oldest!=null) tail+=' for up to '+c.oldest+' days';
+    // the whale count is COUNTED, never assumed: "two of them are your whales" is a sentence that
+    // must be true of the file, not a flourish. Here it is one, so it says one.
+    if(c.whales) tail+=', '+(c.whales===1?'one of them a whale':c.whales+' of them whales');
+    return '<p class="concentration"><span class="lightning">ϟ</span><b>'+lead+'</b>'+
+      ' <span>— '+esc(tail)+'.</span></p>';
+  }
+
+  // ---- today's plan (v5): rank circles, muted why, type tags ----
+  function renderPlan(){
+    var el=$('.plan'); if(!el) return;
+    var plan=D.plan||[];
+    var done=plan.filter(function(t){return t.done;}).length;
+    var total=(D.plan_total!=null?D.plan_total:plan.length);
+    // CSV-only desk reclaims the meetings/commitments space, so the plan shows more of the day
+    // there (still ranked, tail still disclosed via "+N more"); connected desk keeps the tight 5.
+    var cap=(document.getElementById('stage')&&document.getElementById('stage').classList.contains('csv-only'))?9:5;
+    var shown=plan.slice(0,cap), extra=plan.length-shown.length;
+    var rows=shown.map(function(t,i){
+      var rank=(t.rank!=null?t.rank:(i+1));
+      var why=t.why?' <em class="why">'+esc(t.why)+'</em>':'';
+      var type=t.type?'<span class="action">'+esc(t.type)+'</span>':'';
+      return '<div class="task'+(t.done?' done':'')+'" data-task="'+i+'"><span class="rank">'+esc(rank)+'</span><span>'+esc(t.text)+why+'</span>'+type+'</div>';
+    }).join('');
+    // D7: when a tier was capped, disclose "+N more in this tier" (opens the full plan list).
+    // ONE disclosure line, not two stacked: the card is a fixed 275px box and two lines
+    // (20px + 19px) overflowed it by 36px, so the very links that promise "nothing is hidden"
+    // were themselves hanging off the bottom edge, cut. Measured, not guessed.
+    var ov=(D.plan_overflow||[]).filter(function(o){return o&&o.hidden>0;});
+    var bits=[];
+    if(extra>0) bits.push('＋ '+extra+' more');
+    if(ov.length) bits.push(ov.map(function(o){return '+'+o.hidden+' '+esc(o.tier);}).join(' · '));
+    var moreLine=bits.length?'<div class="more click" data-open="plan">'+bits.join(' · ')+' →</div>':'';
+    el.innerHTML='<div class="section-head"><h2>TODAY’S PLAN <span class="plan-sub">ranked · where to focus first</span></h2><span class="meta">'+done+' / '+total+'</span></div>'+
+      '<div class="addbox"><input id="scp-add" placeholder="Add to today’s plan..." /></div>'+
+      (rows||empty('Nothing planned yet. Type above to add a task.'))+moreLine;
+  }
+  function planAllBody(){
+    var plan=D.plan||[];
+    var rows=plan.map(function(t,i){
+      var rank=(t.rank!=null?t.rank:(i+1));
+      var why=t.why?' <span class="scp-muted">'+esc(t.why)+'</span>':'';
+      // the type is a tag in its own auto-width column. It used to be dropped into the 44px
+      // "days" column of the shared row and silently clipped ("No next step" -> "No ne").
+      return '<div class="scp-drow scp-plan"><span>'+esc(rank)+'. '+esc(t.text)+why+'</span>'+
+        (t.type?'<span class="scp-tag">'+esc(t.type)+'</span>':'<span></span>')+'</div>';
+    }).join('');
+    var byType={};
+    plan.forEach(function(t){ if(t.type) byType[t.type]=(byType[t.type]||0)+1; });
+    var kinds=Object.keys(byType);
+    var done=plan.filter(function(t){return t.done;}).length;
+    // the sub-line describes the ranking in words a rep would use; it does NOT list the tiers,
+    // because the list has tiers the sentence kept forgetting. Facts are counts, not a footnote
+    // about sort order ("urgency × value" is how a developer says "worst first").
+    return rec([
+      recScope([plan.length+' item'+(plan.length===1?'':'s'),'most urgent first']
+               .concat(kinds.map(function(k){return k+' '+byType[k];})).join(' · ')),
+      '<div><div class="scp-lbl">The plan</div>'+drows(rows,'Nothing planned.')+'</div>'
+    ]);
+  }
+
+  function renderMeetings(){
+    var el=$('.meetings'); if(!el) return;
+    var ms=D.meetings||[];
+    var rows=ms.map(function(m,i){
+      var val=m.value!=null?fmt(m.value):'';
+      // every external meeting opens. When it can't be linked, the drill-in says why — an honest
+      // blocked state, never an inert row the rep clicks twice and gives up on. Internal stays inert.
+      var clk=m.internal?'':' click';
+      return '<div class="meeting-row'+clk+'" data-meeting="'+i+'"><div class="time">'+esc(m.time)+'</div>'+
+        '<div class="meeting-main"><b>'+esc(m.who)+'</b><div class="meeting-sub">'+esc(m.sub)+'</div></div>'+
+        '<div class="value">'+val+'</div></div>';
+    }).join('');
+    var mi=(typeof D.meetings_internal==='number')?D.meetings_internal:ms.filter(function(m){return m.internal;}).length;
+    var mmeta=mi>0?((ms.length-mi)+' + '+mi+' internal'):((ms.length||'0')+' today');
+    el.innerHTML='<div class="section-head"><h2>TODAY’S MEETINGS</h2><span class="meta">'+mmeta+'</span></div>'+
+      (rows||empty('No meetings today. Connect your calendar to see them here.'));
+  }
+
+  function renderCommits(){
+    var el=$('.commitments'); if(!el) return;
+    var cs=D.commitments||[];
+    var head='<div class="section-head"><h2>COMMITMENTS TRACKER <span style="margin-left:20px;font-size:10px;color:#4d6387;font-weight:600">promises pulled from your sent email + call transcripts</span></h2>'+
+      '<span class="meta">'+(D.commit_open||0)+' open · '+(D.commit_overdue||0)+' overdue</span></div>';
+    if(!cs.length){ el.innerHTML=head+empty('No commitments tracked yet. Connect email and call transcripts to auto-fill this.'); return; }
+    head+='<div class="commit-head"><div>WHAT YOU PROMISED</div><div>OWED TO</div><div>DEAL</div><div>VALUE</div><div style="text-align:right">DUE</div></div>';
+    // FOUR, not five — the fifth row was bought back and spent on breathing space for the other
+    // four (see .promise-row: 20px rows fused into a block and made the whole desk read as noise).
+    // Still NEVER silently hides the tail: a card that says "8 open" must account for 8, so the
+    // remainder goes to "+N more" and opens the full ledger.
+    var shown=cs.slice(0,4), extra=cs.length-shown.length;
+    var rows=shown.map(function(c,i){
+      var b=c.due_class==='bad'?'<span class="bullet red"></span>':c.due_class==='warn'?'<span class="bullet yellow"></span>':'<span class="ring"></span>';
+      return '<div class="promise-row click" data-commit="'+i+'">'+b+'<span>'+esc(c.promise)+'</span><span>'+esc(c.owed_to)+'</span>'+
+        '<span class="deal">'+esc(c.deal)+'</span><span>'+(c.value!=null?fmt(c.value):'')+'</span><span class="due '+c.due_class+'">'+esc(c.due)+'</span></div>';
+    }).join('');
+    el.innerHTML=head+rows+(extra>0?'<div class="more click" data-open="commits">＋ '+extra+' more</div>':'');
+  }
+
+  // ---- pipeline target (v5) — folded INTO the sub-line, not stacked under it ----
+  // It used to render its own <div> (and a second one for the Commit basis). On a fixed-height
+  // card that sits on a drawn desk, every extra line has to come from somewhere, and these were
+  // pushing the card over the desk's front edge. Same figures, one line.
+  // `sep` is what precedes the block. It used to be hardcoded to ' · ' because this only ever got
+  // appended to the sub-line; it now also renders on its own beside the headline, where a leading
+  // separator would be a bullet floating in space.
+  function targetInlineHtml(sep){
+    if(sep==null) sep=' · ';
+    var t=D.target;
+    // Unset, the prompt goes on the SAME line as everything else. As its own line it cost this
+    // fixed-height card 16px it doesn't have — measured on a panel with no target set, where it
+    // was the line tipping the card over the desk's front edge. Set or unset, the target lives
+    // on the sub-line.
+    if(!t) return sep+'<b class="scp-target-in click" data-open="target">Set your target →</b>';
+    if(t.amount==null) return '';
+    var gap=t.gap, cov=t.coverage_pct;
+    // Reads "£10k over target (111% of £90k)". The surplus/shortfall stays — it is the whole
+    // point of setting a target, and D6 pins the wording ("£X over target", never "gap £-X").
+    // Wording is a contract, not taste: ui_test requires the coverage word AND the surplus/gap,
+    // and D6 pins the surplus to "£X over target" (never a negative "gap £-X"). Reads:
+    //   "£10k over target · 111% covered (£90k)"
+    var lead;
+    if(gap==null) lead='target '+fmt(t.amount);
+    else if(gap<0) lead=fmt(-gap)+' over target';
+    else if(gap>0) lead='gap '+fmt(gap);
+    else lead='on target';
+    var bits=[lead];
+    if(cov!=null) bits.push(cov+'% covered ('+fmt(t.amount)+')');
+    else if(gap!=null) bits.push('of '+fmt(t.amount));
+    // keeps the .scp-target class the D6 assertion reads, alongside the inline styling hook
+    var out=sep+'<b class="scp-target scp-target-in">'+bits.join(' · ')+'</b>';
+    // D6: when Forecast Category drives the view, the VP forecasts on the Commit basis — keep it,
+    // but inline, so it can never add a line to a card that has no line to give.
+    if(t.commit){
+      var cg=t.commit.gap;
+      out+=' · <b class="scp-target scp-target-in">Commit '+fmt(t.commit.total)+' ('+t.commit.coverage_pct+'%'+
+           (cg!=null?(cg<0?', '+fmt(-cg)+' over':', '+fmt(cg)+' short'):'')+')</b>';
+    }
+    return out;
+  }
+
+  function targetBody(){
+    var t=D.target;
+    var cur=t?('<p>Right now: '+fmt(t.amount)+' for the '+esc(t.period||'period')+'.</p>'):'';
+    return cur+'<p>Tell Bingley your number in chat. For example, say “set my target to £150k for the quarter”. Bingley writes it to <b>overrides.target</b> and rebuilds.</p>'+
+      '<p class="scp-muted">Your panel then shows how much of your target your weighted pipeline covers, and the gap left to close. Bingley never invents a target, it only shows one you set.</p>';
+  }
+
+  function renderPipeline(){
+    var el=$('.pipeline'); if(!el) return;
+    var p=D.pipeline||{stages:[]};
+    var head='<div class="section-head"><h2>PIPELINE <span style="color:#42577b;font-size:13px;font-weight:500">'+esc(p.label||'(OPEN)')+'</span></h2><span class="meta">Full forecast　→</span></div>';
+    if(p.suppressed){
+      el.innerHTML=head+'<div class="scp-unconf-block click" data-open="issues"><div class="scp-unconf-big">Unconfirmed</div>'+
+        '<div class="scp-unconf-note">Answer 1 question to see this figure →</div></div>';
+      return;
+    }
+    var stages=p.stages||[];
+    // (p.category still ships in the summary JSON; it is no longer drawn on this card)
+    var max=Math.max.apply(null,stages.map(function(s){return s.weighted;}).concat([1]))||1;
+    var bars=stages.map(function(s){return '<i style="width:'+Math.round((s.weighted||0)/max*100)+'%"></i>';}).join('');
+    // "£9.3k · 7" made the reader guess what 7 was. A bare number next to a £ figure is a riddle,
+    // and the answer ("deals") costs five characters. Count first, because the bar above already
+    // encodes the money — the one thing the bar CAN'T say is how many deals are in it.
+    var labs=stages.map(function(s,i){
+      var n=(s.count||0);
+      return '<div class="click" data-stage="'+i+'"><b>'+esc(s.name)+'</b>'+
+        '<span>'+n+' deal'+(n===1?'':'s')+' · '+fmt(s.weighted)+'</span></div>';
+    }).join('');
+    var ub=p.unconfirmed_bar?'<div class="scp-unconf-bar click" data-open="issues">Unconfirmed · '+p.unconfirmed_bar.count+' deals · '+fmt(p.unconfirmed_bar.value)+' unweighted →</div>':'';
+    // The forecast-category table used to render INSIDE this card. The card is a fixed 153px box
+    // sitting on a drawn desk; on a file that has the column (persona 6) the table spent 245px of
+    // a 144px budget and hung 90px below the card, over the desk. It is also a section that was cut
+    // on 16 Jul. The totals stay in the summary JSON (battery 32b) and the Commit basis is stated
+    // inline on the sub-line, so nothing measurable is lost — only the block that broke the card.
+    var sub='weighted · '+(p.count||0)+' deals'+(p.month_note?' · '+esc(p.month_note):'')+(p.retainer_note?' · '+esc(p.retainer_note):'')+(p.parked_note?' · '+esc(p.parked_note):'');
+    var hasBody=(stages.length>0)||p.unconfirmed_bar;
+    // ONE sub-line, not two. The card is a fixed box that has to sit on the desk, and the target
+    // line (a v5 addition) was the 16px that pushed the whole card over the desk's front edge.
+    // Nothing is lost: the target, the % and the basis fold into the line above it, and the full
+    // target-and-gap breakdown has its own section on the Book.
+    // TWO DIFFERENT QUESTIONS, TWO PLACES. The sub-line was carrying five facts of three kinds —
+    // what the number IS (weighted, 20 deals), WHEN it lands (closing by 31 Jul), and how you're
+    // doing AGAINST it (£10k over, 111% covered) — in one 11px run under a 32px figure. Nothing
+    // told you where one fact stopped and the next started, so it read as scatter.
+    // The target verdict now sits BESIDE the number it judges; the sub-line keeps only the scope
+    // facts that qualify the £100k. Same words, same gates, two coherent groups instead of one run.
+    var body=hasBody?
+      '<div class="pipeline-top"><div class="pipeline-money">'+esc(p.total)+'</div>'+
+        '<div class="pipeline-vs">'+targetInlineHtml('')+'</div></div>'+
+      '<div class="pipeline-sub">'+sub+'</div>'+
+      (stages.length?'<div class="stages">'+bars+'</div><div class="stage-labels">'+labs+'</div>':'')+ub
+      : empty('No open pipeline yet. Add deals to your file to see the forecast.');
+    el.innerHTML=head+body;
+  }
+
+  // HEAT, NOT DECORATION. Every stale deal was the same amber, so 14 days and 5 days looked
+  // identical and the column carried no information beyond the digits — you had to read all five
+  // and rank them yourself, which is the card's whole job.
+  // The bands are anchored to the panel's OWN threshold, never invented: staleDays() is the line at
+  // which a deal is called stale at all (5d here, "past your 5-day mark" on the meeting drill-in).
+  // Just over it = amber; double it = the deal has been ignored for as long again as it took to
+  // qualify; treble = red. Red is already "needs you now" everywhere else on this desk (the DUE
+  // pills), so it means the same thing here — it is not a new colour with a new meaning.
+  // The bands are HUMAN units — a week, a fortnight — because that is how a rep says it, and
+  // "parked in proposal for a fortnight" is literally the sentence Bingley speaks about Hargreaves.
+  // The Math.max floors keep them honest for anyone whose line ISN'T 5 days: on a 20-day threshold
+  // a fortnight is not yet a crisis, so the bands scale out rather than painting the whole column
+  // red the moment it qualifies. A colour that always fires is not a signal.
+  function staleHeat(days){
+    if(days==null) return '';
+    var base=staleDays()||5;
+    if(days>=Math.max(14,base*2)) return 'hot';    // over a fortnight
+    if(days>=Math.max(10,base*1.5)) return 'warm'; // over a week and a half
+    return '';                                      // just over your line
+  }
+  function renderStale(){
+    var el=$('.stale'); if(!el) return;
+    var st=D.stale||[];
+    var suppressed=(D.stale_count==='unconfirmed');
+    var head='<div class="section-head"><h2>STALE DEALS</h2><span class="meta">'+(suppressed?'unconfirmed':(D.stale_count||0)+' at risk')+'</span></div>';
+    if(suppressed){ el.innerHTML=head+'<div class="scp-unconf-block click" data-open="issues"><div class="scp-unconf-note">Answer 1 question to see stale deals →</div></div>'; return; }
+    if(!st.length){ el.innerHTML=head+empty('Nothing going stale. Good.'); return; }
+    // cap rendered rows at 5; the card must never overflow-clip silently. The header count
+    // stays the TRUE total; a '＋N more' affordance opens a modal listing every stale deal.
+    var shown=st.slice(0,5), extra=st.length-shown.length;
+    var rows=shown.map(function(s,i){
+      var tag=s.whale?' · whale':'';
+      return '<span class="days '+staleHeat(s.days)+'">'+s.days+'d</span><span class="click" data-stale="'+i+'">'+esc(s.name)+tag+'</span><span class="amt">'+fmt(s.value)+'</span>';
+    }).join('');
+    el.innerHTML=head+'<div class="stale-grid">'+rows+'</div>'+
+      // the "ranked by days × value" note is gone: it spent 19px of a 156px card to say, in
+      // developer arithmetic, what "worst first" already says — and it was the line hanging
+      // 9px BELOW the card's bottom edge, out on the desk. The order is stated in the drill-in.
+      (extra>0?'<div class="more click" data-open="stale-all">＋ '+extra+' more</div>':'');
+  }
+
+  // ---- modal ----
+  // `wide` is the ONLY geometry a body may ask for, and there are exactly two: the 560 record card
+  // and the 760 prep sheet. Not a free parameter — a body still cannot invent its own size.
+  function openModal(title, body, wide){
+    closeModal();
+    var bg=document.createElement('div'); bg.className='scp-modal-bg'; bg.id='scpModal';
+    bg.innerHTML='<div class="scp-modal'+(wide?' scp-wide':'')+'" role="dialog" aria-modal="true"><div class="scp-modal-head"><h3>'+title+'</h3><button class="scp-modal-x" aria-label="Close">×</button></div><div class="scp-modal-body">'+body+'</div></div>';
+    // mount INSIDE the scaled stage, not on <body>: the drill-in belongs to the panel and must
+    // scale with it. Falls back to body only if the shell is absent (bare-fragment tests).
+    (document.querySelector('.stage')||document.body).appendChild(bg);
+    requestAnimationFrame(function(){bg.classList.add('open');});
+    bg.addEventListener('click',function(e){if(e.target===bg)closeModal();});
+    bg.querySelector('.scp-modal-x').addEventListener('click',closeModal);
+  }
+  function closeModal(){var m=document.getElementById('scpModal'); if(m)m.remove();}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+
+  // ==== THE ONE DRILL-IN SHAPE ====
+  // Four bands, always this order, any may be absent: identity · facts · evidence · gap.
+  // Every body below composes these and nothing else, so five doors open one component.
+  // band 1, RECORD form: the modal title is the category ("Meeting", "Deal going cold") and this
+  // is the record itself. Used by drill-ins that open ONE thing.
+  function recId(name, sub, tags){
+    var t=(tags||[]).filter(Boolean).join('');
+    return '<div class="scp-rec-id"><div><div class="scp-rec-name">'+name+'</div>'+
+      (sub?'<div class="scp-rec-sub">'+sub+'</div>':'')+'</div>'+
+      (t?'<div class="scp-tags">'+t+'</div>':'')+'</div>';
+  }
+  // band 1, LIST form: a list drill-in has no record to identify — its name IS the modal title,
+  // so repeating it here just printed "Today's plan" twice, 100px apart, with the redundant copy
+  // set louder than the content. This carries the scope line only.
+  function recScope(sub){ return sub?'<div class="scp-rec-sub scp-scope">'+sub+'</div>':''; }
+  function tag(text,cls){ return '<span class="'+(cls||'scp-tag')+'">'+esc(text)+'</span>'; }
+  function whaleTag(on){ return on?'<span class="scp-whale">WHALE</span>':''; }
+  // one fact = label, value, optional provenance sub-line. value is pre-escaped by the caller.
+  function fact(lbl,val,sub){
+    return '<div class="scp-fact"><div class="scp-lbl">'+esc(lbl)+'</div><b>'+val+'</b>'+
+      (sub?'<i>'+esc(sub)+'</i>':'')+'</div>';
+  }
+  // The band's column count FOLLOWS THE DATA. It used to be pinned at 3, which quietly ate the
+  // diff's 4th counter ("gone" — a deal vanishing, the most consequential change on the panel)
+  // to protect a geometry rule. The shape rule must never outrank the truth rule.
+  function facts(cells){
+    var c=cells.filter(Boolean); if(!c.length) return '';
+    return '<div class="scp-facts scp-f'+Math.min(c.length,4)+'">'+c.join('')+'</div>';
+  }
+  // A missing figure has TWO possible causes and they are not the same sentence:
+  //   blocked  — an unanswered blocker suppressed it. There IS a question to answer. Amber.
+  //   unknown  — the file simply doesn't carry it. There is nothing to answer. Muted.
+  // Saying "pending your answer" when no question exists sends the rep to a fix page with
+  // nothing on it. The engine already tells us which: D.suppressed lists the blocked figures.
+  function moneyBlocked(){
+    var s=D.suppressed||[];
+    return s.indexOf('weighted')>=0||s.indexOf('pipeline_total')>=0||s.indexOf('at_risk')>=0||s.indexOf('month')>=0;
+  }
+  function factMoney(lbl,v,prov){
+    if(v!=null) return fact(lbl,fmt(v),prov&&prov.text?prov.text:'');
+    return moneyBlocked()
+      ? '<div class="scp-fact"><div class="scp-lbl">'+esc(lbl)+'</div><b class="warn">unconfirmed</b><i>pending your answer</i></div>'
+      : '<div class="scp-fact"><div class="scp-lbl">'+esc(lbl)+'</div><b class="scp-none">unknown</b><i>not in your file</i></div>';
+  }
+  // the £ cell of a LIST row. fmt(null) is '' — an empty cell in a column of real numbers is a
+  // silent number: the rep totals the column by eye and undercounts. Say it instead.
+  function amt(v){
+    if(v!=null) return '<span class="amt">'+fmt(v)+'</span>';
+    return moneyBlocked()?'<span class="amt scp-blocked">unconfirmed</span>'
+                         :'<span class="amt scp-none">unknown</span>';
+  }
+  function days(d){ return (d==null)?'<span class="scp-none">unknown</span>':(d+'d'); }
+  function staleDays(){ return (typeof D.stale_days==='number')?D.stale_days:null; }
+  function factDays(d){
+    if(d==null) return fact('Last touch','<span class="scp-none">unknown</span>');
+    var sd=staleDays(), cold=(sd!=null&&d>=sd);
+    return '<div class="scp-fact"><div class="scp-lbl">Last touch</div><b'+(cold?' class="warn"':'')+'>'+d+' day'+(d===1?'':'s')+' ago</b>'+
+      (cold?'<i>past your '+sd+'-day mark</i>':'')+'</div>';
+  }
+  function quote(text,isQuote){ return '<div class="scp-quote'+(isQuote?' q':'')+'">'+text+'</div>'; }
+  // band 3: something we WORKED OUT and are telling the rep. Not the same object as band 4,
+  // which is only ever "here is what we do not have". A conclusion must never wear the gap's
+  // clothes or the honest-blocked state stops meaning anything.
+  function note(html){ return '<div class="scp-note">'+html+'</div>'; }
+  function gap(html){ return '<div class="scp-gap">'+html+'</div>'; }
+  function rec(bands){ return '<div class="scp-rec">'+bands.filter(Boolean).join('')+'</div>'; }
+  function drows(rows,emptyText){
+    return '<div class="scp-drows">'+(rows||'<div class="scp-empty">'+esc(emptyText)+'</div>')+'</div>';
+  }
+
+  // meeting → the deal it is about (SHIP-PLAN §3 #3). No transcript exists, so there are no
+  // talking points and no email thread: those are a gap strip, never an invention.
+  // ==== MEETING PREP — the four sections, per the 17 Jul ruling ====
+  // Left column is what you SAY. Right column is what you're WORKING FROM. Nothing here is named
+  // after our plumbing: "what's inside the number" and "what's moved since Sat 11 Jul's file" were
+  // engineer-speak on a sales screen and are gone. The stage delta survives as one plain line on
+  // the Stage fact ("moved up from Discovery on Friday") — the fact was good, the label was not.
+  // ONE SECTION = ONE BOUNDED CARD. The four sections previously sat in two loose columns with 9.5px
+  // labels, so it read as a dump of data rather than four answers to four questions. Each is now its
+  // own white card on the tray with its own head — you can see the sections before you read a word.
+  function prepCard(title, meta, inner, cls){
+    return '<section class="pcard'+(cls?' '+cls:'')+'">'+
+      '<div class="pcard-h"><span>'+esc(title)+'</span>'+(meta?'<em>'+esc(meta)+'</em>':'')+'</div>'+
+      inner+'</section>';
+  }
+  function pointsSec(mp){
+    if(!mp.points.length){
+      // NOT a dead band and NOT an invention: with no call and no thread there is nothing to reason
+      // FROM, and a point with nothing behind it is the one object on this screen that can lie
+      // fluently. Say that plainly instead of writing three plausible sentences.
+      return prepCard('Bingley’s talking points','','<div class="prep-empty">Nothing to work from yet — no call recorded and no thread with them. '+
+        'I won’t invent talking points from a stage name.</div>');
+    }
+    return prepCard('Bingley’s talking points', mp.points.length+' from your own record',
+      mp.points.map(function(pt){
+        return '<div class="point"><p>'+(pt.lead?'<b>'+esc(pt.lead)+'</b> ':'')+esc(pt.rest||'')+'</p>'+
+          '<span class="cite">'+esc(pt.cite)+(pt.quote?' — “'+esc(pt.quote)+'”':'')+'</span></div>';
+      }).join(''));
+  }
+  function mailSec(mp){
+    if(!mp.emails.length) return prepCard('Recent emails','','<div class="prep-empty">No thread with them in your file.</div>');
+    return prepCard('Recent emails', mp.has_ask?'1 still open':'', mp.emails.map(function(e){
+      var inb=(e.direction==='received');
+      // the amber rail marks the UNANSWERED question — not the newest one. Nothing has been sent
+      // since it, which is a fact about the thread, never a verdict on the rep.
+      return '<div class="mail'+(e.open_ask?' open-ask':'')+'">'+
+        '<div class="mail-top"><span class="dir '+(inb?'in':'out')+'">'+(inb?'RECEIVED':'SENT')+'</span>'+
+        '<span class="mail-sub">'+esc(e.subject||'')+'</span></div>'+
+        '<p class="mail-body">'+(e.open_ask?'“'+esc(e.body||'')+'”':esc(e.body||''))+'</p>'+
+        '<div class="mail-foot"><span'+(e.open_ask?' class="ask-flag"':'')+'>'+
+          (e.open_ask?'Still open · nothing sent since':'')+'</span>'+
+        '<span>'+esc(e.ago||'')+(e.link?' · <a class="scp-link" href="'+esc(e.link)+'" target="_blank" rel="noopener">Open in Gmail →</a>':'')+'</span></div></div>';
+    }).join(''));
+  }
+  function callSec(mp){
+    if(!mp.call) return prepCard('Last call','','<div class="prep-empty">No recording of a call with them. Connect your transcript tool and this carries what was actually said.</div>');
+    var c=mp.call;
+    return prepCard('Last call', [c.source,c.ago].filter(Boolean).join(' · '),
+      '<div class="call">'+esc(c.summary)+'</div>'+
+      (c.link?'<div class="call-foot"><a class="scp-link" href="'+esc(c.link)+'" target="_blank" rel="noopener">Open in '+esc(c.source||'the recording')+' →</a></div>':''));
+  }
+  function ocSec(cm,n){
+    if(!cm) return prepCard('Open commitments','','<div class="prep-empty">No promise to them found in your file.</div>');
+    return prepCard('Open commitments', n+' open', cm);
+  }
+  // 2x2. Left column is what you SAY, right is what you're WORKING FROM; top row is the argument,
+  // bottom row is the record behind it.
+  function prepGrid(mp,cm,n){
+    return '<div class="prep"><span class="prep-tag">Meeting prep</span>'+
+      '<div class="prep-grid">'+pointsSec(mp)+mailSec(mp)+callSec(mp)+ocSec(cm,n)+'</div></div>';
+  }
+
+  function meetingBody(m){
+    var p=m.prep;
+    if(!p){
+      // internal meetings never open (renderMeetings withholds .click), so this only ever
+      // explains an EXTERNAL meeting we could not link to a deal.
+      return rec([
+        recId(esc(m.who), esc([m.time,m.sub].filter(Boolean).join(' · ')), []),
+        gap('<span><b>I couldn’t link this to a deal.</b> '+esc(m.nolink||'No open deal on file for this contact')+'.</span>')
+      ]);
+    }
+    var cm=(p.commits||[]).map(function(c){
+      return '<div class="oc"><span>'+esc(c.promise)+
+        '</span><span class="due '+esc(c.due_class)+'">'+esc(c.due)+'</span></div>';
+    }).join('');
+    var mp=p.mp;
+    // the movement line rides on the Stage fact, in the rep's language, and stays silent when
+    // nothing moved. Silence is not an all-clear; it is simply not a sentence worth spending.
+    var movedSay=(p.moved&&p.moved.say)?p.moved.say:'';
+    return rec([
+      recId(esc(p.name)+' · '+esc(p.company),
+            esc([p.title,m.time,m.sub,(mp&&mp.company_note)?mp.company_note:''].filter(Boolean).join(' · ')),
+            [tag(p.deal_id), whaleTag(p.whale)]),
+      facts([
+        fact('Stage', esc(p.stage), [p.close?'closes '+p.close:'', movedSay,
+             (p.stage_raw&&p.stage_raw!==p.stage)?'their label: '+p.stage_raw:''].filter(Boolean).join(' · ')),
+        factMoney('Value', p.value, p.prov),
+        factDays(p.days)
+      ]),
+      mp?prepGrid(mp,cm,(p.commits||[]).length):'',
+      // NOT "Nothing outstanding." — we don't know the rep owes them nothing, we know we found no
+      // promise in their file. Stating the absence of evidence as an all-clear is precisely the
+      // failure that told a rep "all caught up" over 26 unread tenders.
+      p.note?'<div><div class="scp-lbl">Last note on the record</div>'+quote(esc(p.note),true)+'</div>':'',
+      // THE GAP STRIP MUST KNOW WHAT WE ALREADY HAVE. Left hardcoded, a connected panel goes on
+      // advertising "connect Gmail" directly under a verbatim email it just pulled from Gmail —
+      // the panel failing to notice its own state, which is exactly the class of thing it exists to
+      // catch. It now names only what is genuinely still missing, and disappears when nothing is.
+      meetingGap(p)
+    ]);
+  }
+  // The gap strip must know what we already have. It read p.thread/p.call — fields the prep refactor
+  // removed — so it went on announcing "no email thread for this meeting" directly above a sent email
+  // it was already rendering. Same defect as before the refactor, reintroduced BY the refactor: a
+  // hardcoded absence claim rots the moment its data source moves.
+  // Now: when the prep grid exists it states its own absences, section by section, next to the thing
+  // that's missing. A second, vaguer copy underneath is just another sentence that can go stale.
+  function meetingGap(p){
+    if(p.mp) return '';
+    return gap('<span><b>No transcript or email thread for this meeting.</b> Connect Gmail and your calendar and this fills with the thread and what was said last time.</span>');
+  }
+  function stageBody(s){
+    var rows=(s.deals||[]).map(function(d){
+      return '<div class="scp-drow"><span>'+esc(d.name)+(d.company?' · '+esc(d.company):'')+whaleTag(d.whale)+
+        '</span><span class="scp-muted">'+days(d.days)+'</span>'+amt(d.value)+'</div>';
+    }).join('');
+    return rec([
+      recScope('Open deals in this stage · biggest, coldest first'),
+      facts([
+        // no ||0: a count we don't have is not zero
+        fact('Deals', s.count==null?'<span class="scp-none">unknown</span>':String(s.count)),
+        factMoney('Weighted', s.weighted)
+      ]),
+      '<div><div class="scp-lbl">The deals</div>'+drows(rows,'No deals in this stage.')+'</div>'
+    ]);
+  }
+  function commitBody(c){
+    // c.src||'email' used to invent the provenance on the one band whose entire job IS provenance.
+    // If we don't know where a promise came from, the label says so.
+    var srcLbl='Source'+(c.src?' ('+esc(c.src)+')':'');
+    return rec([
+      recId(esc(c.promise), 'You promised this', [(c.due&&c.due_class)?'<span class="due '+esc(c.due_class)+'">'+esc(c.due)+'</span>':(c.due?tag(c.due):'')]),
+      facts([
+        fact('Owed to', esc(c.owed_to)),
+        fact('Deal', c.deal?esc(c.deal):'<span class="scp-none">not linked</span>'),
+        factMoney('Value', c.value)
+      ]),
+      '<div><div class="scp-lbl">'+srcLbl+'</div>'+
+        (c.quote?quote('“'+esc(c.quote)+'”',true)
+                :quote('<span class="scp-none">No source quote captured for this promise.</span>'))+'</div>'
+    ]);
+  }
+  function staleBody(s){
+    // a name alone is not an identifier: a rep can have 3 deals with the same contact.
+    // This is the SAME deal record the meeting door opens, so it shows the same evidence —
+    // one deal must not be worth more truth through one door than another.
+    return rec([
+      recId(esc(s.name)+(s.company?' · '+esc(s.company):''), 'Going cold', [s.deal_id?tag(s.deal_id):'', whaleTag(s.whale)]),
+      facts([
+        fact('Stage', s.stage?esc(s.stage):'<span class="scp-none">unknown</span>', s.close?'closes '+s.close:''),
+        factMoney('Value', s.value, s.prov),
+        factDays(s.days)
+      ]),
+      s.note?'<div><div class="scp-lbl">Last note on the record</div>'+quote(esc(s.note),true)+'</div>':'',
+      gap('<span><b>Why it went quiet isn’t in your file.</b> Connect Gmail and this shows the last thing either of you said.</span>')
+    ]);
+  }
+  function staleAllBody(){
+    // lists EVERY stale deal (name, company, deal id, days, value, whale tag), not just the 5 shown.
+    var st=D.stale||[];
+    var rows=st.map(function(s){
+      var who=esc(s.name)+(s.company?' · '+esc(s.company):'')+(s.deal_id?' · '+esc(s.deal_id):'')+whaleTag(s.whale);
+      return '<div class="scp-drow"><span>'+who+'</span><span class="scp-muted">'+days(s.days)+'</span>'+amt(s.value)+'</div>';
+    }).join('');
+    var tot=0, known=true;
+    st.forEach(function(s){ if(s.value==null){known=false;} else {tot+=s.value;} });
+    var sd=staleDays();
+    return rec([
+      recScope(sd!=null?('Nothing heard for '+sd+'+ days · worst first'):'Nothing heard for a while · worst first'),
+      facts([
+        fact('Deals', String(st.length)),
+        factMoney('At risk', known?tot:null)
+      ]),
+      '<div><div class="scp-lbl">The deals</div>'+drows(rows,'No stale deals.')+'</div>'
+    ]);
+  }
+
+  // ==== FIX PAGE (v5) — full-centre takeover, drives from D.issues ====
+  var fixState={ans:{},skip:{}};
+  var _fv=null, _deskOrig=null;
+  function humanRule(r){ if(!r) return 'Data issue'; return String(r).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
+  function issueTitle(i){ return i.title||i.name||humanRule(i.rule); }
+  function issueStake(i){ return (typeof i.stake==='number')?i.stake:null; }
+  function issId(i){ return i.id||i.rule||('#'+((D.issues||[]).indexOf(i))); }
+  function choicesOf(i){ return (i.choices&&i.choices.length)?i.choices.slice():[]; }
+  // fixable = blockers then warnings, ranked by £ stake where known (unknown sorts last, stable)
+  function fixable(){
+    var arr=(D.issues||[]).filter(function(i){return i.severity==='blocker'||i.severity==='warning';});
+    return arr.map(function(i,idx){return {i:i,idx:idx};}).sort(function(a,b){
+      var sa=a.i.severity==='blocker'?0:1, sb=b.i.severity==='blocker'?0:1;
+      if(sa!==sb) return sa-sb;
+      var ka=issueStake(a.i), kb=issueStake(b.i);
+      if(ka==null&&kb==null) return a.idx-b.idx;
+      if(ka==null) return 1; if(kb==null) return -1;
+      if(kb!==ka) return kb-ka;
+      return a.idx-b.idx;
+    }).map(function(o){return o.i;});
+  }
+  // D1: map a chosen DISPLAY label to its machine override VALUE (issue.choices_values is parallel
+  // to issue.choices). Falls back to the label when no machine value is declared.
+  function valueOf(i,label){
+    if(i.choices_values&&i.choices){var idx=i.choices.indexOf(label);if(idx>=0&&idx<i.choices_values.length)return i.choices_values[idx];}
+    return label;
+  }
+  // D1: emit ENGINE-VALID overrides. stage_map issues nest under {"stage_map":{"<raw>":"<canonical>"}}
+  // keyed by the raw stage word; scalar issues write override_key -> normalised value; a null value
+  // (e.g. "Something else") emits nothing.
+  function overridesJSON(){
+    var out={};
+    fixable().forEach(function(i){
+      var a=fixState.ans[issId(i)];
+      if(a==null) return;
+      var val=valueOf(i,a);
+      if(val==null) return;
+      var mode=i.emit||'scalar';
+      if(mode==='stage_map'){
+        out.stage_map=out.stage_map||{};
+        out.stage_map[i.raw_stage!=null?i.raw_stage:(i.override_key||i.rule)]=val;
+      } else {
+        out[i.override_key||i.rule||issId(i)]=val;
+      }
+    });
+    return JSON.stringify(out,null,2);
+  }
+  function fixCardHtml(i,n){
+    var stake=issueStake(i);
+    var line=(i.csv_lines&&i.csv_lines.length)?'<span class="fix-line">line'+(i.csv_lines.length>1?'s':'')+' '+esc(i.csv_lines.join(', '))+'</span>':'';
+    var stakeHtml=stake!=null?'<span class="fix-stake">'+fmt(stake)+'</span>':'';
+    var saw=i.saw?'<div class="fix-saw"><span class="lbl">WHAT I SAW</span>'+esc(i.saw)+'</div>':'';
+    var why=i.question?'<div class="fix-why">'+esc(i.question)+'</div>':'';
+    var id=issId(i);
+    var btns=choicesOf(i).map(function(c){return '<button class="fa" data-fix="'+escA(id)+'" data-ans="'+escA(c)+'">'+esc(c)+'</button>';}).join('');
+    btns+='<button class="fa skip" data-fix="'+escA(id)+'" data-skip="1">Skip</button>';
+    return '<div class="fix-card card live"><div class="fix-card-top"><span class="fix-n">'+n+'</span><b>'+esc(issueTitle(i))+'</b>'+line+stakeHtml+'</div>'+
+      saw+why+'<div class="fix-answers">'+btns+'</div></div>';
+  }
+  function renderFixInner(fv){
+    var all=(D.issues||[]);
+    var N=all.length;
+    var fx=fixable();
+    var M=fx.length;
+    var num={}; fx.forEach(function(i,idx){num[issId(i)]=idx+1;});
+    var answeredIds=fx.filter(function(i){return fixState.ans[issId(i)]!=null;});
+    var aCount=answeredIds.length;
+    var sCount=fx.filter(function(i){var id=issId(i);return fixState.skip[id]&&fixState.ans[id]==null;}).length;
+    var live=null;
+    for(var k=0;k<fx.length;k++){var id0=issId(fx[k]); if(fixState.ans[id0]==null&&!fixState.skip[id0]){live=fx[k];break;}}
+
+    var resolvedHtml=answeredIds.map(function(i){
+      var p=i.preview;
+      var delta=(p&&p.label)?'<span class="fix-delta">'+esc(p.label)+': '+esc(p.old)+' → '+esc(p.new)+'</span>':'';
+      return '<div class="fix-resolved card"><span class="check">✓</span><span><b>'+esc(issueTitle(i))+'</b> '+esc(fixState.ans[issId(i)])+'</span>'+delta+'</div>';
+    }).join('');
+    var liveHtml = live ? fixCardHtml(live,num[issId(live)])
+      : (M ? '<div class="fix-resolved card"><span class="check">✓</span><span>All questions handled. Copy your answers across when you are ready.</span></div>'
+           : '');
+    var queue=fx.filter(function(i){return i!==live && fixState.ans[issId(i)]==null;});
+    var queueHtml=queue.length?('<div class="fix-queue">'+queue.map(function(i){
+      var id=issId(i); var sk=fixState.skip[id]?' · skipped':'';
+      var stake=issueStake(i); var st=stake!=null?'<span class="fix-stake">'+fmt(stake)+'</span>':'';
+      var what=(i.question?esc(i.question):esc(i.saw||''))+sk;
+      return '<div class="fix-qrow card"><span class="fix-n q">'+num[id]+'</span><b>'+esc(issueTitle(i))+'</b><span class="fix-qwhat">'+what+'</span>'+st+'</div>';
+    }).join('')+'</div>'):'';
+
+    // disclosures (FYIs) — shown, not answered; counted so header total never contradicts the chip
+    var fyis=all.filter(function(i){return i.severity==='fyi';});
+    var discHtml=fyis.length?('<div class="fix-disc"><div class="lbl" style="margin-top:6px">JUST SO YOU KNOW</div>'+fyis.map(function(i){
+      var line=(i.csv_lines&&i.csv_lines.length)?'<span class="fix-line">line'+(i.csv_lines.length>1?'s':'')+' '+esc(i.csv_lines.join(', '))+'</span>':'';
+      return '<div class="fix-qrow card"><span class="fix-n q">i</span><b>'+esc(issueTitle(i))+'</b><span class="fix-qwhat">'+esc(i.saw||'')+'</span>'+line+'</div>';
+    }).join('')+'</div>'):'';
+
+    var mainEmpty=(!resolvedHtml&&!liveHtml&&!queueHtml&&!discHtml)?'<div class="scp-empty">Nothing needs your eyes. Good.</div>':'';
+
+    var dots=fx.map(function(i){var id=issId(i); var c=fixState.ans[id]!=null?'done':(i===live?'live':''); return '<i class="'+c+'"></i>';}).join('');
+
+    // payoff — from issue.preview rows; else "applies on rebuild"
+    var prevIssues=fx.filter(function(i){return i.preview&&i.preview.label;});
+    var payHtml;
+    if(prevIssues.length){
+      payHtml=prevIssues.map(function(i){
+        var p=i.preview; var ans=fixState.ans[issId(i)]!=null;
+        var right=ans?'<span class="pay-new">'+esc(p.new)+'</span>':'<span class="pay-pending">answering…</span>';
+        return '<div class="pay-row"><span>'+esc(p.label)+'</span><span class="pay-old">'+esc(p.old)+'</span><span class="pay-arrow">→</span>'+right+'</div>';
+      }).join('')+'<div class="pay-note">applies on rebuild · nothing changes until you answer</div>';
+    } else {
+      payHtml='<div class="pay-note">Your answers apply on rebuild. Nothing changes until you answer.</div>';
+    }
+
+    // receipt — the answers chosen so far
+    var recLines=answeredIds.length?answeredIds.map(function(i){
+      return '<div class="rec-line muted">'+esc(issueTitle(i))+' · '+esc(fixState.ans[issId(i)])+'</div>';
+    }).join(''):'<div class="rec-line muted">No answers yet.</div>';
+    var recSummary='<div class="rec-line muted">'+aCount+' answered · '+sCount+' skipped</div>';
+    var copyHtml='<textarea class="fix-copy-ta" readonly>'+esc(overridesJSON())+'</textarea>'+
+      '<button class="rec-patch click" id="fixCopyBtn">Copy answers for Bingley →</button>';
+
+    fv.innerHTML=
+      '<div class="fix-head"><div><h1 class="fix-title">Fix my data</h1>'+
+        '<p class="fix-sub">'+N+' thing'+(N===1?' needs':'s need')+' your eyes · ranked by money at stake · nothing changes until you answer</p></div>'+
+        '<div class="fix-progress"><b>'+aCount+' of '+M+'</b> answered <span class="fix-dots">'+dots+'</span></div>'+
+        '<div class="fix-back click" id="fixBack">← Back to your desk</div></div>'+
+      '<div class="fix-cols"><div class="fix-main">'+mainEmpty+resolvedHtml+liveHtml+queueHtml+discHtml+
+        '<div class="fix-tone">Two skips and I stop asking. I never invent a date, and I never touch a number without your say-so.</div></div>'+
+      '<aside class="fix-side"><div class="fix-payoff card"><div class="lbl">WHAT YOUR ANSWERS CHANGE</div>'+payHtml+'</div>'+
+        '<div class="fix-receipt card"><div class="lbl">YOUR RECEIPT SO FAR</div>'+recLines+recSummary+copyHtml+'</div></aside></div>';
+
+    fv.querySelectorAll('.fa[data-fix]').forEach(function(b){b.addEventListener('click',function(){
+      var id=b.getAttribute('data-fix');
+      if(b.getAttribute('data-skip')){ fixState.skip[id]=true; }
+      else { fixState.ans[id]=b.getAttribute('data-ans'); delete fixState.skip[id]; }
+      renderFixInner(fv);
+    });});
+    var bk=fv.querySelector('#fixBack'); if(bk)bk.addEventListener('click',function(){showFix(false);});
+    var cp=fv.querySelector('#fixCopyBtn'); if(cp)cp.addEventListener('click',function(){
+      var ta=fv.querySelector('.fix-copy-ta'); if(!ta)return;
+      try{ ta.focus(); ta.select();
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ta.value);}
+        else if(document.execCommand){document.execCommand('copy');}
+      }catch(e){}
+      cp.textContent='Copied ✓';
+    });
+  }
+  function deskSections(){ return ['.hero','.plan','.meetings','.commitments','.pipeline','.stale','.connect-strip'].map(function(s){return $(s);}).filter(Boolean); }
+  function buildFixView(){
+    if(_fv&&document.body.contains(_fv)) return _fv;
+    var host=$('.center')||document.body;
+    _fv=document.createElement('section');
+    _fv.className='fixview'; _fv.id='scpFixview'; _fv.hidden=true;
+    host.appendChild(_fv);
+    return _fv;
+  }
+  function showFix(on){ showView(on?'fix':(_view==='fix'?'desk':_view)); }
+
+  // ==== THE BOOK (tab 2) — "do I trust it / how am I tracking" ====
+  // Per SHIP-PLAN §1: everything that overflowed the Desk's fixed stage gets a named home here.
+  // The Book SCROLLS (the Desk deliberately does not) and renders the SAME objects the Desk does —
+  // a second view of one truth, never a second calculation of it.
+  var _bv=null, _view='desk';
+  var bookSort={by:'rank',dir:1};
+
+  function sectionHead(title,sub,meta){
+    return '<div class="book-head"><h2>'+esc(title)+(sub?'<span class="book-sub">'+esc(sub)+'</span>':'')+'</h2>'+
+      (meta?'<span class="book-meta">'+esc(meta)+'</span>':'')+'</div>';
+  }
+  function bookUnconf(what){
+    return '<div class="scp-unconf-block click" data-open="issues"><div class="scp-unconf-big">Unconfirmed</div>'+
+      '<div class="scp-unconf-note">'+esc(what)+' — answer your open questions to see this →</div></div>';
+  }
+
+  // ---- one ledger table: header INSIDE the scroller, sticky. ----
+  // The header used to be a sibling ABOVE .book-scroll, which carries its own 12px padding and 1px
+  // border — so every column head on the Book sat 13px to the left of the column it named. Two
+  // boxes cannot be kept in register by hand; one box keeps itself. Sticky is the payoff: the Book
+  // is the one surface allowed to scroll, so its column heads must survive the scroll.
+  // ONE ledger block: the scroller, its fade, and the line that accounts for its count. They are one
+  // component because they must agree — the fade and the words "scroll it" are claims about whether
+  // rows are hidden, and a claim that isn't measured is the thing this panel exists to prevent.
+  // Both are switched on at runtime by markOverflow(), never assumed: a 3-row list that fits was
+  // being fade-dimmed on its last real row and told to scroll, which reads as "something's missing"
+  // on a list where nothing is.
+  //
+  // The fade is a WRAPPER, not a child of the scroller: painted inside, it would scroll away with
+  // the rows and stop marking the cut exactly when the rows run out.
+  function bookTable(headHtml, rowsHtml, cls, id, count){
+    return '<div class="book-ledger"><div class="book-fade"><div class="book-table'+(cls?' '+cls:'')+'">'+headHtml+
+      '<div class="book-rows"'+(id?' id="'+id+'"':'')+'>'+rowsHtml+'</div></div></div>'+(count||'')+'</div>';
+  }
+  // A capped list must say what it holds, in the product's own arithmetic: N in the list, all of
+  // them reachable. Never "top N", never a silent tail.
+  function bookCount(n, noun, extra){
+    return '<div class="book-count">All '+n+' '+esc(noun)+(n===1?'':'s')+' in the list'+
+      '<span class="book-hint"> — scroll it, nothing is held back</span>.'+(extra?' '+esc(extra):'')+'</div>';
+  }
+  // measured, not assumed — and re-measured on every render, because the same list is short on one
+  // file and 400 rows long on the next.
+  function markOverflow(root){
+    root.querySelectorAll('.book-ledger').forEach(function(l){
+      var t=l.querySelector('.book-table'); if(!t) return;
+      function paint(){
+        var over=t.scrollHeight>t.clientHeight+2;
+        l.classList.toggle('overflows',over);
+        // at the bottom there is nothing below to fade FOR: leaving it up dims the last row for no reason
+        l.classList.toggle('at-end',over&&(t.scrollTop+t.clientHeight>=t.scrollHeight-2));
+      }
+      paint();
+      if(!t._scpBound){ t._scpBound=true; t.addEventListener('scroll',paint); }
+    });
+  }
+
+  // ---- the trust strip: one line, pinned above every figure in the book.
+  // If the file was read wrong, everything below it is fiction — so the row count and the
+  // open-question count frame the numbers rather than hiding in a section further down. ----
+  function trustStrip(){
+    var hh=(D.book||{}).health||{};
+    if(hh.rows_in==null) return '';
+    var open=(D.issues||[]).filter(function(i){return i.severity==='blocker'||i.severity==='warning';}).length;
+    var right=open
+      ? '<span class="trust-open click" data-open="issues">'+open+' need'+(open===1?'s':'')+' your eyes →</span>'
+      : '<span class="trust-ok">nothing needs your eyes</span>';
+    return '<div class="book-trust">'+hh.rows_in+' rows read · '+hh.kept+' kept'+
+      (hh.skipped?' · '+hh.skipped+' skipped':'')+right+'</div>';
+  }
+
+  // ---- 1. target and gap to target ----
+  function bookTarget(){
+    var b=D.book||{}, t=D.target;
+    var h=sectionHead('TARGET AND GAP TO TARGET','the number you are chasing, and what is left to find');
+    if(b.target_weighted==null) return '<section class="book-sec card">'+h+bookUnconf('Your pipeline')+'</section>';
+    if(!t){
+      return '<section class="book-sec card">'+h+
+        '<div class="book-big">'+fmt(b.target_weighted)+'</div>'+
+        '<div class="book-bigsub">weighted open pipeline · '+fmt(b.target_unweighted)+' unweighted · '+esc(String(b.open_count))+' deals</div>'+
+        '<div class="book-callout click" data-open="target"><b>You have not set a target.</b> Tell Bingley the number you are chasing and this becomes your coverage view. →</div>'+
+        '</section>';
+    }
+    var pct=t.coverage_pct==null?null:t.coverage_pct;
+    var covered=(t.amount!=null&&t.gap!=null)?(t.amount-t.gap):null;
+    var over=(t.gap!=null&&t.gap<0);
+    var barPct=pct==null?0:Math.max(0,Math.min(100,pct));
+    var rows=[['Target ('+esc(t.period||'quarter')+')',fmt(t.amount)],
+              ['Weighted pipeline',fmt(b.target_weighted)],
+              ['Unweighted (if all land)',fmt(b.target_unweighted)]];
+    if(t.commit) rows.push(['Commit category',fmt(t.commit.total)]);
+    if(b.horizon&&b.horizon.weighted!=null) rows.push(['Closing by '+esc(b.horizon.end),fmt(b.horizon.weighted)+' · '+b.horizon.count+' deals']);
+    var tbl=rows.map(function(r){return '<div class="book-kv"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>';}).join('');
+    var gapLine=over
+      ? '<span class="book-good">'+fmt(-t.gap)+' over target</span>'
+      : '<span class="book-bad">'+fmt(t.gap)+' still to find</span>';
+    var commitLine=t.commit
+      ? '<div class="book-note">On the Commit basis your VP forecasts against: '+fmt(t.commit.total)+' · '+t.commit.coverage_pct+'% of target · '+
+        (t.commit.gap<0?(fmt(-t.commit.gap)+' over'):(fmt(t.commit.gap)+' short'))+'.</div>' : '';
+    return '<section class="book-sec card">'+h+
+      '<div class="book-cov"><div class="book-cov-l">'+
+        '<div class="book-big">'+(pct==null?'—':pct+'%')+'</div>'+
+        '<div class="book-bigsub">of '+fmt(t.amount)+' covered'+(covered!=null?' · '+fmt(covered)+' weighted against it':'')+'</div>'+
+        '<div class="book-bar"><i style="width:'+barPct+'%" class="'+(barPct>=100?'full':'')+'"></i></div>'+
+        '<div class="book-gap">'+gapLine+'</div>'+commitLine+
+      '</div><div class="book-cov-r">'+tbl+'</div></div></section>';
+  }
+
+  // ---- 2. data health — the audit trail behind the Desk chip ----
+  function bookHealth(){
+    var b=D.book||{}, hh=b.health||{}, all=(D.issues||[]);
+    // The row accounting was published THREE times on one screen — the trust strip, this head's
+    // meta, and the four rows below. The trust strip owns it (it is pinned above every figure by
+    // contract), so this section states only what the strip cannot: WHICH rows, and why.
+    var h=sectionHead('DATA HEALTH','every assumption, every skipped row, every rate I used',
+      all.length?(all.length+' thing'+(all.length===1?'':'s')+' to know'):'');
+    // A count of 0 is not a finding: "Test/junk skipped: 0" spends a row to say nothing happened,
+    // and filler dilutes the rows that are real. A count whose rows are ITEMISED below is not a
+    // finding either — it is the same fact twice, and the itemised version is the useful one. So a
+    // number earns a line here only when it is non-zero AND has no detail table of its own.
+    var stat=[['Skipped',hh.skipped,hh.skipped_detail],['Test/junk skipped',hh.junk,hh.junk_detail]]
+      .filter(function(x){return x[1] && !(x[2]&&x[2].length);})
+      .map(function(x){return '<div class="book-kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>';}).join('');
+    stat=stat?'<div class="book-kvs">'+stat+'</div>':'';
+    function issueRows(sev,label){
+      var g=all.filter(function(i){return i.severity===sev;});
+      if(!g.length) return '';
+      return '<div class="book-lbl">'+label+' · '+g.length+'</div>'+g.map(function(i){
+        var line=(i.csv_lines&&i.csv_lines.length)?'<span class="fix-line">line'+(i.csv_lines.length>1?'s':'')+' '+esc(i.csv_lines.slice(0,8).join(', '))+'</span>':'';
+        return '<div class="scp-issue scp-'+esc(sev)+'"><div class="scp-issue-saw">'+esc(issueTitle(i))+' '+line+'</div>'+
+          (i.saw?'<div class="scp-q">'+esc(i.saw)+'</div>':'')+
+          (i.proposed_fix?'<div class="scp-affects">'+esc(i.proposed_fix)+'</div>':'')+'</div>';
+      }).join('');
+    }
+    var body=issueRows('blocker','NEEDS AN ANSWER')+issueRows('warning','WORTH A LOOK')+issueRows('fyi','JUST SO YOU KNOW');
+    var resolved=(hh.resolved&&hh.resolved.length)?'<div class="book-lbl">ANSWERS APPLIED · '+hh.resolved.length+'</div>'+
+      hh.resolved.map(function(x){return '<div class="book-row"><span class="check">✓</span><span>'+esc(x)+'</span></div>';}).join(''):'';
+    function lineRows(list){
+      return list.map(function(x){
+        return '<div class="scp-drow sk"><span>line '+esc(x.line)+'</span><span class="scp-muted">'+esc(x.why)+'</span></div>';}).join('');
+    }
+    var skipped=(hh.skipped_detail&&hh.skipped_detail.length)?
+      '<div class="book-lbl">ROWS I DID NOT COUNT · '+hh.skipped_detail.length+'</div>'+
+      bookTable('',lineRows(hh.skipped_detail),'t-sk','',bookCount(hh.skipped_detail.length,'row','Not counted in any figure on this panel.')):'';
+    var jd=(hh.junk_detail&&hh.junk_detail.length)?
+      '<div class="book-lbl">TEST/JUNK ROWS · '+hh.junk_detail.length+'</div>'+
+      bookTable('',lineRows(hh.junk_detail),'t-sk','',bookCount(hh.junk_detail.length,'row','Not counted in any figure on this panel.')):'';
+    var act=(all.filter(function(i){return i.severity==='blocker'||i.severity==='warning';}).length)
+      ? '<div class="book-callout click" data-open="issues"><b>Answer these on the fix page</b> — nothing changes until you do. →</div>' : '';
+    // FX lives here, not in a section of its own: a static rate is a disclosure about how the
+    // file was read, which is exactly what this section is.
+    var c=(D.book||{}).currency, fx='';
+    if(c&&c.mixed){
+      fx='<div class="book-lbl">RATES I USED · '+c.currencies.join(' · ')+'</div>'+
+        Object.keys(c.rates||{}).map(function(k){
+          return '<div class="book-kv"><span>'+esc(k)+' → GBP</span><b>'+esc(String(c.rates[k]))+'</b></div>';}).join('')+
+        '<div class="book-note">'+esc(c.note||'')+' Every converted deal shows its own working next to its name, so no figure on this panel is unexplained.</div>';
+    }
+    return '<section class="book-sec card">'+h+stat+act+resolved+
+      (body||'<div class="scp-empty">Nothing flagged. Your file read cleanly.</div>')+skipped+jd+fx+'</section>';
+  }
+
+  // ---- 4a. full pipeline by stage ----
+  function bookPipeline(){
+    var p=D.pipeline||{}, h=sectionHead('PIPELINE IN FULL','every open deal, by stage');
+    if(p.suppressed) return '<section class="book-sec card">'+h+bookUnconf('Your pipeline')+'</section>';
+    var stages=p.stages||[];
+    if(!stages.length) return '<section class="book-sec card">'+h+'<div class="scp-empty">No open pipeline.</div></section>';
+    var body=stages.map(function(s){
+      var rows=(s.deals||[]).slice().sort(function(a,b){return (b.value||0)-(a.value||0);}).map(function(d){
+        var pv=d.prov?'<span class="book-prov">'+esc(d.prov.text)+'</span>':'';
+        return '<div class="scp-drow"><span>'+esc(d.name||'')+(d.company?' · '+esc(d.company):'')+
+          (d.whale?' <span class="scp-whale">WHALE</span>':'')+pv+'</span>'+
+          '<span class="scp-muted">'+(d.days==null?'—':d.days+'d')+'</span><span class="amt">'+fmt(d.value)+'</span></div>';
+      }).join('');
+      return '<div class="book-stage"><div class="book-lbl book-stick">'+esc(s.name)+' · '+s.count+' deal'+(s.count>1?'s':'')+' · '+fmt(s.weighted)+' weighted</div>'+rows+'</div>';
+    }).join('');
+    // The same capped, scrolling table the stale and commitments ledgers use. This section is the
+    // one that SCALES: 20 demo deals spent 981px, so a real 400-deal book would have run a single
+    // uncapped section ~14,000px long with its stage labels scrolled off the top. Capping it is not
+    // clipping — every deal is still reachable, which is the whole difference (the defect this
+    // panel exists to prevent was the stale card silently HIDING 103 of 108 rows). The stage label
+    // sticks as you scroll its deals, so the £ column always has a stage over it.
+    return '<section class="book-sec card">'+h+
+      '<div class="book-kvs"><div class="book-kv"><span>Weighted</span><b>'+esc(String(p.total))+'</b></div>'+
+      '<div class="book-kv"><span>Open deals</span><b>'+esc(String(p.count))+'</b></div></div>'+
+      bookTable('',body,'tall','',bookCount(p.count,'open deal','Grouped by stage, biggest first.'))+'</section>';
+  }
+
+  // ---- 4b. full stale ledger, sortable (400-deal scale) ----
+  function staleRowsHtml(){
+    return sortedStale().map(function(s,i){
+      var pv=s.prov?'<span class="book-prov">'+esc(s.prov.text)+'</span>':'';
+      return '<div class="scp-drow st click" data-stale="'+i+'"><span>'+esc(s.name||'')+(s.company?' · '+esc(s.company):'')+
+        (s.deal_id?' <span class="scp-muted">'+esc(s.deal_id)+'</span>':'')+(s.whale?' <span class="scp-whale">WHALE</span>':'')+pv+'</span>'+
+        '<span class="scp-muted">'+esc(s.stage||'')+'</span>'+
+        '<span class="book-days">'+s.days+'d</span><span class="amt">'+(s.value==null?'—':fmt(s.value))+'</span></div>';
+    }).join('');
+  }
+  function bookStale(){
+    var suppressed=(D.stale_count==='unconfirmed');
+    var st=D.stale||[];
+    var h=sectionHead('DEALS GOING COLD','every one of them, not just the top 5',
+      suppressed?'unconfirmed':(st.length+' at risk · '+esc(String(D.at_risk||''))));
+    if(suppressed) return '<section class="book-sec card">'+h+bookUnconf('Your stale deals')+'</section>';
+    if(!st.length) return '<section class="book-sec card">'+h+'<div class="scp-empty">Nothing going stale. Good.</div></section>';
+    // the header is a plain .book-th: the 4-column template comes from the table's .t-st, so the
+    // head cannot fall out of step with its rows AND cannot be mistaken for one of them.
+    var hd='<div class="scp-drow book-th"><span class="click" data-sort="name">Deal</span><span class="scp-muted">Stage</span>'+
+      '<span class="click" data-sort="days">Days</span><span class="click amt" data-sort="value">Value</span></div>';
+    return '<section class="book-sec card">'+h+
+      bookTable(hd,staleRowsHtml(),'tall t-st','bookStaleRows',bookCount(st.length,'deal','Open any row for the record behind it.'))+
+      '<div class="book-note">Default order is the Desk’s: days × value. Click a column to re-sort.</div></section>';
+  }
+
+  // ---- 5. commitments ledger in full ----
+  function bookCommits(){
+    var cs=D.commitments||[];
+    var h=sectionHead('COMMITMENTS TRACKER','every promise, in full',(D.commit_open||0)+' open · '+(D.commit_overdue||0)+' overdue');
+    if(!cs.length) return '<section class="book-sec card">'+h+'<div class="scp-empty">No commitments tracked. Connect email and call transcripts to auto-fill this.</div></section>';
+    var rows=cs.map(function(c,i){
+      return '<div class="scp-drow cm click" data-commit="'+i+'"><span>'+esc(c.promise)+'</span><span class="scp-muted">'+esc(c.owed_to)+'</span>'+
+        '<span class="scp-muted">'+esc(c.deal||'')+'</span><span class="amt">'+(c.value!=null?fmt(c.value):'')+'</span>'+
+        '<span class="due '+esc(c.due_class||'ok')+'">'+esc(c.due)+'</span></div>';
+    }).join('');
+    var hd='<div class="scp-drow book-th"><span>What you promised</span><span>Owed to</span><span>Deal</span><span class="amt">Value</span><span>Due</span></div>';
+    return '<section class="book-sec card">'+h+
+      bookTable(hd,rows,'t-cm','',bookCount(cs.length,'promise','Open any one for the email or call it came from.'))+'</section>';
+  }
+
+  function renderBookInner(bv){
+    var t=D.target;
+    // The gap is SIGNED: a negative gap is a surplus. Rendering it raw published "£-10k to find"
+    // at the top of the Book while the section below said "£10k over target" and pipeline.mp3 said
+    // "comfortably past your ninety-thousand target" — the panel contradicting itself and the
+    // voice in one line. Over/under is a branch, never a minus sign.
+    var sub=t?('target '+fmt(t.amount)+' · '+(t.coverage_pct==null?'gap unconfirmed'
+                :(t.gap<0?(fmt(-t.gap)+' over target'):(fmt(t.gap)+' to find'))))
+             :'how you are tracking, and whether you can trust it';
+    bv.innerHTML='<div class="book-top"><div><h1 class="fix-title">Your book of business</h1>'+
+        '<p class="fix-sub">'+esc(sub)+'</p></div>'+
+        '<div class="fix-back click" id="bookBack">← Back to your desk</div></div>'+
+      trustStrip()+bookTarget()+bookHealth()+bookPipeline()+bookStale()+bookCommits();
+    bindBook(bv);
+  }
+  // Every door the Book opens is a door the DESK already has. The Book is the full ledger, so a row
+  // here must not be worth less truth than the same row on the Desk — but it must not be worth MORE
+  // either: these reuse staleBody/commitBody verbatim rather than inventing a Book-only record.
+  // Pipeline rows deliberately have NO door: the stage payload carries nothing the row doesn't
+  // already show, and a door that opens onto what you just read is a lie about depth.
+  function bindStale(bv){
+    bv.querySelectorAll('[data-stale]').forEach(function(el){el.addEventListener('click',function(){
+      openModal('Deal going cold', staleBody(sortedStale()[+el.dataset.stale]));});});
+  }
+  function bindBook(bv){
+    bv.querySelectorAll('[data-open="issues"]').forEach(function(el){el.addEventListener('click',function(){showView('fix');});});
+    bv.querySelectorAll('[data-open="target"]').forEach(function(el){el.addEventListener('click',function(){openModal('Set your pipeline target',targetBody());});});
+    var bk=bv.querySelector('#bookBack'); if(bk)bk.addEventListener('click',function(){showView('desk');});
+    bindStale(bv);
+    bv.querySelectorAll('[data-commit]').forEach(function(el){el.addEventListener('click',function(){
+      openModal('Commitment', commitBody(D.commitments[+el.dataset.commit]));});});
+    bv.querySelectorAll('[data-sort]').forEach(function(el){el.addEventListener('click',function(){
+      var by=el.getAttribute('data-sort');
+      if(bookSort.by===by) bookSort.dir=-bookSort.dir; else { bookSort.by=by; bookSort.dir=(by==='name'?1:-1); }
+      var host=bv.querySelector('#bookStaleRows');
+      // re-bind after re-sorting: the rows are replaced, so their listeners go with them. The
+      // data-stale index addresses the SORTED list, so the door must follow the sort or a re-sorted
+      // row opens somebody else's deal.
+      if(host){ host.innerHTML=staleRowsHtml(); bindStale(host); }
+      paintSort(bv);
+      markOverflow(bv);
+    });});
+    paintSort(bv);
+    // NB: no markOverflow() here. bindBook runs from renderBookInner, which is called while the view
+    // is still hidden — a hidden element measures 0x0, so every table read "fits" and the fade and
+    // scroll hint never appeared on the one section that overflows. It is called from showView()
+    // instead, after the view is shown. Measure the thing on screen, or don't call it a measurement.
+  }
+  // the sorted view the rows are rendered from — one function, so the row and its door can never
+  // disagree about which deal is at index i.
+  function sortedStale(){
+    var st=(D.stale||[]).slice(), by=bookSort.by, dir=bookSort.dir;
+    if(by!=='rank') st.sort(function(a,b){
+      var x,y;
+      if(by==='days'){x=a.days;y=b.days;}
+      else if(by==='value'){x=a.value||0;y=b.value||0;}
+      else {x=String(a.name||'').toLowerCase();y=String(b.name||'').toLowerCase();}
+      return x<y?-dir:(x>y?dir:0);
+    });
+    return st;
+  }
+  // a sortable column that never says which way it is sorted is a control you have to click to read.
+  function paintSort(bv){
+    bv.querySelectorAll('[data-sort]').forEach(function(el){
+      var on=(el.getAttribute('data-sort')===bookSort.by);
+      el.classList.toggle('sorted',on);
+      el.setAttribute('data-dir',on?(bookSort.dir>0?'up':'down'):'');
+    });
+  }
+  function buildBookView(){
+    if(_bv&&document.body.contains(_bv)) return _bv;
+    var host=$('.center')||document.body;
+    _bv=document.createElement('section');
+    _bv.className='bookview'; _bv.id='scpBookview'; _bv.hidden=true;
+    host.appendChild(_bv);
+    return _bv;
+  }
+
+  // ---- chrome: Desk / The Book tabs, built in the CONTENT layer so the shell stays swappable ----
+  function renderChrome(){
+    var bl=$('.brand-left'); if(!bl) return;
+    if(_deskOrig==null){var d0=$('.desk',bl); _deskOrig=d0?d0.textContent:'Desk';}
+    bl.innerHTML='Sales Control Panel <span class="dot">·</span>'+
+      '<span class="scp-tabs"><span class="scp-tab click" data-view="desk">Desk</span>'+
+      '<span class="scp-tab click" data-view="book">Book of Business</span></span>'+
+      '<span class="scp-crumb"></span>';
+    bl.querySelectorAll('[data-view]').forEach(function(el){el.addEventListener('click',function(){showView(el.getAttribute('data-view'));});});
+    paintChrome();
+  }
+  function paintChrome(){
+    var bl=$('.brand-left'); if(!bl) return;
+    bl.querySelectorAll('.scp-tab').forEach(function(el){
+      var v=el.getAttribute('data-view');
+      el.classList.toggle('on', v===_view || (_view==='fix'&&v==='desk'));
+    });
+    var cr=$('.scp-crumb',bl);
+    if(cr) cr.innerHTML=(_view==='fix')?'<span class="dot">·</span> Fix my data':'';
+  }
+  function showView(name){
+    _view=name||'desk';
+    var fv=buildFixView(), bv=buildBookView();
+    if(_view==='fix'){ renderFixInner(fv); fv.hidden=false; bv.hidden=true; }
+    else if(_view==='book'){ renderBookInner(bv); bv.hidden=false; fv.hidden=true; bv.scrollTop=0; markOverflow(bv); }
+    else { fv.hidden=true; bv.hidden=true; }
+    var hide=(_view!=='desk');
+    deskSections().forEach(function(s){ s.style.visibility=hide?'hidden':''; });
+    paintChrome();
+  }
+
+  function bind(){
+    // issues surface (chip + every suppressed-figure link) opens the fix page
+    document.querySelectorAll('[data-open="issues"]').forEach(function(el){el.addEventListener('click',function(){ showFix(true); });});
+    document.querySelectorAll('[data-open="diff"]').forEach(function(el){el.addEventListener('click',function(){ openModal('What changed', diffModalBody()); });});
+    document.querySelectorAll('[data-open="target"]').forEach(function(el){el.addEventListener('click',function(){ openModal('Set your pipeline target', targetBody()); });});
+    document.querySelectorAll('[data-open="plan"]').forEach(function(el){el.addEventListener('click',function(){ openModal('Today’s plan', planAllBody()); });});
+    document.querySelectorAll('[data-open="stale-all"]').forEach(function(el){el.addEventListener('click',function(){ openModal('Deals going cold', staleAllBody()); });});
+    document.querySelectorAll('[data-meeting]').forEach(function(el){el.addEventListener('click',function(){
+      var m=(D.meetings||[])[+el.dataset.meeting]; if(!m||m.internal) return;
+      openModal(m.prep?('Meeting prep · '+esc(m.prep.name)):('Meeting · '+esc(m.who)),
+                meetingBody(m), !!(m.prep&&m.prep.mp));});});
+    document.querySelectorAll('[data-stage]').forEach(function(el){el.addEventListener('click',function(){
+      var s=(D.pipeline.stages||[])[+el.dataset.stage]; openModal(esc(s.name)+' deals', stageBody(s));});});
+    document.querySelectorAll('[data-commit]').forEach(function(el){el.addEventListener('click',function(){
+      openModal('Commitment', commitBody(D.commitments[+el.dataset.commit]));});});
+    document.querySelectorAll('[data-stale]').forEach(function(el){el.addEventListener('click',function(){
+      openModal('Deal going cold', staleBody(D.stale[+el.dataset.stale]));});});
+    document.querySelectorAll('.task[data-task]').forEach(function(el){el.addEventListener('click',function(e){
+      if(e.target.tagName==='INPUT')return; var i=+el.dataset.task; D.plan[i].done=!D.plan[i].done; renderPlan(); bind();});});
+    var add=document.getElementById('scp-add');
+    if(add)add.addEventListener('keydown',function(e){if(e.key==='Enter'&&add.value.trim()){D.plan.unshift({text:add.value.trim(),type:'Manual',done:false});renderPlan();bind();}});
+  }
+
+  // CSV-only desk: when NEITHER meetings nor commitments have a data source, the two connector cards
+  // otherwise render as large hollow boxes (half the desk empty on a first run). Fold them into ONE
+  // thin connect strip and let the plan take the reclaimed room. Empty-state collapse, SHIP-PLAN §3.
+  // Nothing is invented: the strip only ever offers to connect, it never shows a fabricated meeting
+  // or promise. The moment either connector carries a row, the full two-card layout returns.
+  function csvOnlyMode(){ return !((D.meetings&&D.meetings.length)||(D.commitments&&D.commitments.length)); }
+  function setDeskMode(){
+    var stage=document.getElementById('stage'); if(!stage) return;
+    var on=csvOnlyMode();
+    stage.classList.toggle('csv-only', on);
+    // Anchor the strip in the SAME container as the cards (.center), so its absolute left/top share
+    // the cards' coordinate origin. Appending to #stage put it under a different origin and it drifted
+    // left into the rail.
+    var host=(stage.querySelector('.plan')&&stage.querySelector('.plan').parentNode)||stage;
+    var strip=stage.querySelector('.connect-strip');
+    if(on){
+      if(!strip){ strip=document.createElement('div'); strip.className='connect-strip'; host.appendChild(strip); }
+      strip.innerHTML='<span class="cs-dot"></span><span>Connect your calendar and email to fill in today’s meetings and the commitments tracker.</span>';
+    } else if(strip&&strip.parentNode){ strip.parentNode.removeChild(strip); }
+  }
+  function renderAll(){setDeskMode();renderChrome();renderHero();renderPlan();renderMeetings();renderCommits();renderPipeline();renderStale();bind();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',renderAll);else renderAll();
+  window.SCP_render=renderAll;
+})();
+</script>

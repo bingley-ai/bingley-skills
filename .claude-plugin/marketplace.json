@@ -1,0 +1,13 @@
+{
+  "name": "bingley-skills",
+  "owner": {
+    "name": "Bingley"
+  },
+  "plugins": [
+    {
+      "name": "bingley-sales",
+      "source": "./plugins/bingley-sales",
+      "description": "Six free AI sales skills by Bingley: cold email building and grading, company research at any scale, Apollo list building, a sales advisory board, a sales control panel, and the shared sales brain that powers them."
+    }
+  ]
+}

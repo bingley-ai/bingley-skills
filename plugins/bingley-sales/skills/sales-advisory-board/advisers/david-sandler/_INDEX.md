@@ -1,0 +1,36 @@
+# David Sandler — Transcript Corpus Index
+
+30 curated teaching transcripts, pulled free from the Sandler organisation's channels (teaching his system), auto-captions cleaned to plain text.
+
+- -mmOsCJqh88 - The Sandler Submarine  (744 words)
+- 32XVVaRQHmc - Sandler Sales Training with Joe Diliberto and Drew Aversa  (6789 words)
+- 3ZB7iVRI5FI - EP 12 Sandler Selling Method A Step-by-Step Guide to Boost Your Sales Process Podcast  (3223 words)
+- 5gW8cdnajcM - 7 parts to the sandler selling system  (1141 words)
+- 629T8r9QDhw - Sales Tip Master Your Budget Conversations With Prospects  (527 words)
+- Cj4wh2xWg3Y - How To Get More Rapport With Clients Using Sandlers Upfront Contract  (5456 words)
+- FnHliTirVvk - The Sandler Success Triangle With Dave Mattson  Salesman Podcast  (8176 words)
+- FsxcoJseGiI - Learning the Sandler Selling System A Journey to Sales Mastery  (191 words)
+- GBVVXj2r_5s - Dave Mattson On Linkedin The Sandler Way The Complete Interview  (5646 words)
+- H-HeXvaI44U - The Upfront Contract  (185 words)
+- H6ov76ePvsw - Sandler Session 10 Fulfillment and Post Sell  (178 words)
+- IgapwHHZSig - Sales Tip to Identify a Prospects Level of Pain  (293 words)
+- MXXo-mqxNvk - Powerful Questioning Techniques For Salespeople  (485 words)
+- QHUc50-prCs - Full Episode 24 - David Mattson CEO of Sandler Sales Training  (10188 words)
+- T-8BhuflCtg - The Sandler Sales and Leadership Thought of the Day  Post Sell  (688 words)
+- WDwqbONSiEU - Cold Emailing Strategies Webinar With Breakthrough Email  Sandler Training  (16485 words)
+- WOCU4ixTk8g - Sales Carpool Coaching  Asking questions  (509 words)
+- YEkayjvr9ww - Sandler Session 5 Up Front Contracts  (217 words)
+- _nz3MkiRcnA - Pain Funnel with Danny Wood  (431 words)
+- by2g80cp53k - Dave Mattson - Sandler Sales Training Make It Happen Mondays  (12417 words)
+- iSeKA1Sfxww - The Sandler Microlearning Collection The Sales System  (199 words)
+- kkJSz_oisyc - Strip Line to Seal the Deal  (131 words)
+- n5HlgAqNF8E - How to Control and Influence the Sales Conversation  (3905 words)
+- o-YT09Miw-c - Sales Growth Ryan Reilly of Sandler on Proven Strategies for Your Business— Turn One Studi  (5274 words)
+- r-I93iXfL-8 - The Future of Sales Training Dave Mattson (Sandler) x Yoodli  (4952 words)
+- vaQf7n8XO7w - Prospect the Sandler Way Webinar  (11845 words)
+- vbm3F3yotQw - LinkedIn the Sandler Way Webinar - Sandler Training  (10870 words)
+- wKxaYCcwZ9E - Games Buyers Play Webinar with InsideSales  Sandler Training  (11238 words)
+- xmfkq3hVDSo - Break The Rules Close More Sales Webinar  (16097 words)
+- ybicGvEE0OY - Building Rapport with Almost Anyone  (270 words)
+
+Total: 138750 words across 30 transcripts (~278 pages).

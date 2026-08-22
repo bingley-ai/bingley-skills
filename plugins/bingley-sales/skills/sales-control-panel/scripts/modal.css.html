@@ -1,0 +1,444 @@
+<style id="scp-interactive">
+.center .click{cursor:pointer}
+.center .meeting-row.click:hover,.center .promise-row.click:hover{background:rgba(63,95,74,.05);border-radius:8px}
+.center .stage-labels .click:hover b,.center .stale-grid .click:hover,.center .more.click:hover,.center .insight.click:hover,.center .activity-link.click:hover{color:#1f5f4a}
+.addbox input{border:0;background:transparent;outline:none;width:100%;font:inherit;color:#4c5f80}
+.task.done span:nth-child(2){text-decoration:line-through;color:#9aa0a8}
+.scp-empty{color:#8a8a8a;font-size:12px;padding:14px 2px;font-style:italic}
+/* ---- the drill-in (one shape, five doors) ----
+   Every drill-in is the SAME record card in the SAME four bands, in this order:
+     1 identity  — who/what this record is        (.scp-rec-id)
+     2 facts     — the file's figures, one grid   (.scp-facts)
+     3 evidence  — rows or a verbatim quote       (.scp-drows / .scp-quote)
+     4 gap       — what we honestly don't have    (.scp-gap)
+   A band may be absent; the order never changes. Bodies emit bands, not layouts —
+   so a new drill-in cannot invent its own geometry.
+
+   The modal MOUNTS INSIDE .stage, not on <body>. The stage is a fixed 1448x1086
+   design surface scaled by --fit; a body-mounted modal sits outside that transform
+   and renders at browser scale over a scaled panel — the drill-in visibly not
+   belonging to the product it came from. Inside .stage it shares the panel's
+   coordinate system and scales with it. Geometry below is therefore in STAGE px,
+   never vh/vw. */
+.scp-modal-bg{position:absolute;inset:0;z-index:50;background:rgba(20,22,26,.32);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .16s ease}
+.scp-modal-bg.open{opacity:1}
+.scp-modal{display:flex;flex-direction:column;width:560px;max-width:calc(100% - 80px);max-height:760px;background:#fcfbfa;border:1px solid #e4dfda;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.28);transform:translateY(8px);transition:transform .16s ease;font-family:inherit}
+.scp-modal-bg.open .scp-modal{transform:none}
+/* head is fixed, body scrolls: the title of a long list must not scroll away, and the
+   close control must never leave the stage */
+.scp-modal-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px 12px}
+.scp-modal-head h3{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em;color:#17191d;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scp-modal-x{flex:0 0 auto;border:0;background:transparent;font-size:22px;line-height:1;color:#8b96ad;cursor:pointer;padding:0 2px}
+.scp-modal-x:hover{color:#42577b}
+.scp-modal-body{flex:1 1 auto;overflow:auto;overscroll-behavior:contain;padding:2px 22px 20px;font-size:13px;color:#242a31;line-height:1.5}
+/* the four bands, evenly spaced by one rule rather than per-body margins */
+.scp-rec{display:flex;flex-direction:column;gap:15px}
+.scp-rec>*{min-width:0}
+/* 1 identity */
+.scp-rec-id{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.scp-rec-name{font-size:14.5px;font-weight:650;color:#17191d;letter-spacing:-.01em}
+.scp-rec-sub{margin-top:3px;font-size:11.5px;color:#5b6c8c;font-weight:500}
+/* the LIST form of band 1: a scope line with no record above it, so it needs no top offset */
+.scp-rec-sub.scp-scope{margin-top:0}
+/* list rows concatenate strings; the chip provides its own gap rather than a stray space that
+   survives as a trailing character when there is no whale */
+.scp-drow .scp-whale{margin-left:6px}
+.scp-tags{display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;max-width:210px}
+/* one chip token, matched to .scp-whale (9px) so an id and a WHALE sitting side by side are the
+   same object in two colours, not two objects */
+.scp-tag{font-size:9px;font-weight:700;letter-spacing:.03em;padding:2px 6px;border-radius:100px;background:#eceff5;color:#42577b;white-space:nowrap}
+/* 2 facts — the COLUMN COUNT FOLLOWS THE DATA (2, 3 or 4), it does not force the data to fit 3.
+   Long values wrap inside their cell instead of pushing the grid wide. */
+.scp-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 12px;padding:13px 0;border-top:1px solid #eee9e4;border-bottom:1px solid #eee9e4}
+.scp-facts.scp-f1{grid-template-columns:minmax(0,1fr)}
+.scp-facts.scp-f2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.scp-facts.scp-f4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.scp-fact{min-width:0}
+.scp-fact b{display:block;font-size:14px;font-weight:650;color:#17191d;line-height:1.25;overflow-wrap:anywhere}
+.scp-fact i{display:block;margin-top:3px;font-size:10.5px;font-style:normal;color:#8b96ad;overflow-wrap:anywhere}
+/* TWO missing-data states, two meanings, one treatment each — never mixed:
+   .warn (amber "unconfirmed") = a blocker affects this figure, it is pending YOUR answer.
+   .scp-none (muted "unknown") = the file simply doesn't carry it. Nothing to answer.
+   Neither is ever a number, and neither is ever £0. */
+.scp-fact b.warn{color:#b45309}
+.scp-none{color:#8b96ad;font-weight:500}
+.scp-fact b.scp-none,.scp-fact b .scp-none{font-weight:500}
+/* the £ column of a list row. NOT .scp-unconf — that class already exists product-wide as grey
+   italic (hero chip, suppressed pipeline block), so reusing it here would have silently restyled
+   the Desk. Own class, same amber as the fact-level blocked state. */
+.amt.scp-blocked{font-size:10.5px;font-weight:600;font-style:normal;color:#b45309}
+.amt.scp-none{font-size:10.5px;font-weight:500;font-style:normal}
+/* band 3 conclusion — deliberately NOT .scp-gap: a finding must not look like a missing thing */
+.scp-note{padding:10px 14px;border-radius:9px;background:#f0faf3;border:1px solid #cfe6d6;font-size:12px;color:#2c4a35;line-height:1.45}
+.scp-note b{font-weight:700}
+/* 3 evidence */
+.scp-quote{padding:11px 14px;border-radius:9px;background:#f3f6fb;border:1px solid #dbe4f0;font-size:12.5px;color:#2f3c55;line-height:1.5;overflow-wrap:anywhere}
+.scp-quote.q{font-style:italic}
+/* 4 gap — the honest blocked state, styled as a feature, never as an error */
+.scp-gap{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;background:#f4f2f0;border:1px solid #e4dfda;font-size:11.5px;color:#6b7994;line-height:1.45}
+.scp-gap b{color:#42577b;font-weight:650}
+/* ============================================================================
+   MEETING PREP — v1's four quadrants, on the shell's own tokens.
+   Left column = what you SAY. Right column = what you're WORKING FROM.
+   The modal is 560 for a RECORD CARD and 760 for this PREP SHEET. Two widths, and
+   only two: at 560 the two-column grid gives ~250px columns and the buyer's own
+   sentence ("Can you do a tiered structure for 50/100/200 unit buys?") wraps to
+   four lines. That sentence is the most important object on the screen — the
+   geometry serves it, not the other way round. layout_test pins the set {560,760}
+   so a third width can't quietly appear: the rule was never the NUMBER, it was
+   that no drill-in invents its own geometry.
+   ========================================================================== */
+/* NO SCROLL. The prep sheet is a page you read at 14:59, not a document you browse: 760 capped the
+   modal and quietly hid the call summary below the fold on the two richest meetings. 940 is the
+   ceiling the STAGE allows (1086 tall, ~70px of air top and bottom) — it is a hard limit, not a
+   preference, so if a section ever needs more room something else gives it up. */
+.scp-modal.scp-wide{width:760px;max-height:940px}
+.prep{padding:14px;border-radius:11px;background:#f7f5f2;border:1px solid #e8e3dd}
+.prep-tag{display:inline-block;margin-bottom:12px;padding:3px 10px;border-radius:100px;background:#e8f0e9;color:#2c5a3f;font-size:9.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase}
+/* 2x2. Aligned rows are the point: four bounded cards read as four answers, where two loose columns
+   read as a dump. Rows size to their tallest card, and the resulting whitespace looks deliberate
+   BECAUSE the card has an edge — unbounded, the same gap looks like a bug. */
+.prep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.pcard{background:#fff;border:1px solid #e8e3dd;border-radius:9px;padding:0 12px 12px;min-width:0;overflow:hidden}
+/* SEPARATE BY SURFACE, NOT BY SIZE.
+   The head and its content were both dark-ish text on the same white, ~one step apart in size — so
+   "BINGLEY'S TALKING POINTS" and "Lead with the tiered pricing." read as siblings and the eye had to
+   parse them to tell which was the label. Making the title BIGGER only makes it compete harder for
+   the same job the content is already doing.
+   So the title moves to its own plane: a tinted strip, full-bleed to the card edges, with the
+   content on white below it. Once the head sits on a different surface it no longer needs weight or
+   darkness to be found — it can RECEDE (9px, tracked wide, muted) and let the content own the card.
+   Result: two planes, not two headings. You see the four boxes before you read a word, and once you
+   know them the labels get out of the way. */
+.pcard-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  margin:0 -12px 10px;padding:7px 12px;background:#f6f4f1;border-bottom:1px solid #ece7e1}
+.pcard-h span{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b96ad}
+.pcard-h em{font-style:normal;font-size:9px;font-weight:600;letter-spacing:.02em;color:#b3bac6;white-space:nowrap}
+/* the tray must stay quieter than the cards sitting on it, or the strip and the tray merge */
+.prep{background:#f2efeb}
+.prep-empty{font-size:11.5px;color:#8b96ad;line-height:1.5;font-style:italic}
+/* the green rule marks the ONLY thing on this screen Bingley wrote rather than quoted. Everything
+   around it is the buyer's words or the transcript tool's. That difference should be visible without
+   reading a word. No card of its own — the section IS the card; a card inside a card is noise. */
+.point{border-left:2px solid #2c5a3f;padding:0 0 0 10px;margin-bottom:11px}
+.point:last-child{margin-bottom:0}
+.point p{margin:0;font-size:12px;line-height:1.45;color:#242a31}
+.point p b{color:#17191d}
+/* the citation is the difference between reasoning and a guess, and the line it names is on this
+   same screen for the eye to check in one glance */
+.point .cite{display:block;margin-top:4px;font-size:9.5px;color:#a8b0bf;line-height:1.4}
+.mail{padding:0 0 9px;margin-bottom:9px;border-bottom:1px solid #f0ece7}
+.mail:last-child{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.mail-top{display:flex;align-items:baseline;gap:6px;margin-bottom:3px}
+.mail-top .dir{flex:0 0 auto;font-size:8px;font-weight:750;letter-spacing:.06em;padding:1px 4px;border-radius:3px}
+.mail-top .dir.in{background:#eef2fb;color:#2d5bd1}
+.mail-top .dir.out{background:#f1efec;color:#8b96ad}
+.mail-sub{font-size:11.5px;font-weight:650;color:#17191d;line-height:1.3;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-body{margin:0;font-size:11.5px;color:#3d4a5c;line-height:1.45}
+.mail-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px;font-size:9.5px;color:#a8b0bf}
+/* amber marks the UNANSWERED question — never the newest one */
+.mail.open-ask{border-left:2px solid #b45309;padding-left:9px;background:#fffdf9;border-radius:0 4px 4px 0}
+.ask-flag{color:#b45309;font-weight:650}
+.call{font-size:11.5px;color:#2f3c55;line-height:1.5;font-style:italic}
+.call-foot{margin-top:8px;font-size:9.5px}
+.scp-modal .oc{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 0 8px;margin-bottom:8px;border-bottom:1px solid #f0ece7}
+.scp-modal .oc:last-child{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.scp-modal .oc span:first-child{font-size:11.5px;color:#242a31;min-width:0}
+/* The link out is the ESCAPE HATCH, not the feature — the panel's job is to make opening the inbox
+   unnecessary, so this is sized and coloured to sit under the evidence, never to be the evidence. */
+.scp-link{color:#344a74;font-weight:650;text-decoration:none;border-bottom:1px solid rgba(52,74,116,.28)}
+.scp-link:hover{color:#1f5f4a;border-bottom-color:rgba(31,95,74,.5)}
+.scp-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:#5b6c8c;font-weight:750;margin-bottom:6px}
+.scp-muted{color:#6b7994}
+.scp-whale{font-size:9px;padding:2px 6px;border-radius:100px;background:#fef1f1;color:#ee2732;font-weight:700;letter-spacing:.03em}
+.scp-drows{display:flex;flex-direction:column}
+/* row variants. A body picks the one that fits its content instead of forcing prose into a
+   44px numeric column and clipping it.
+   EVERY modifier is scp- prefixed ON PURPOSE. The modal now renders INSIDE .stage, so a bare
+   modifier like .plan collides with the Desk's own section class (.plan is position:absolute,
+   left:1px, top:249px) and drags the row 444px out of the modal. Measured, not theorised. */
+.scp-drow{display:grid;grid-template-columns:minmax(0,1fr) 44px 64px;gap:8px;padding:7px 0;border-bottom:1px solid #eee9e4;align-items:center}
+.scp-drow.scp-wide{grid-template-columns:minmax(0,1fr)}
+.scp-drow.scp-plan{grid-template-columns:minmax(0,1fr) auto}
+.scp-drow.scp-pair{grid-template-columns:minmax(0,1fr) auto}
+.scp-drow>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* wide rows carry sentences, not table cells: let them wrap rather than ellipsis away the point */
+.scp-drow.scp-wide>span,.scp-drow.scp-plan>span:first-child{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.scp-drow:last-child{border-bottom:0}
+.scp-drow .amt{text-align:right;font-weight:600;overflow:visible}
+/* SCOPED to the modal. Unscoped, this pill leaked onto the Desk's commitments card, whose DUE
+   column is a 41px slot designed for plain right-aligned text: the pill's padding+background
+   forced "2d late" to wrap onto two lines and pushed its background off the card's right edge,
+   sliced. The Desk keeps its own .due colours from panel-shell; the pill is a modal thing. */
+.scp-modal .due{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:600}
+.scp-modal .due.bad{background:#fef1f1;color:#ee2732}.scp-modal .due.warn{background:#fef6ec;color:#b45309}.scp-modal .due.ok{background:#eef2fb;color:#1e40af}
+@media (max-width:560px){.scp-grid{grid-template-columns:1fr}}
+.scp-issue-chip{font-weight:600;border-radius:100px;padding:4px 12px}
+.scp-issue-chip.red{background:#fef1f1;color:#c81e2b}
+.scp-issue-chip.amber{background:#fef6ec;color:#b45309}
+.scp-chip-dot{display:inline-block;width:8px;height:8px;border-radius:100px;background:currentColor;margin-right:7px;vertical-align:middle}
+.scp-unconf{color:#8a8a8a;font-style:italic}
+.scp-unconf-block{padding:14px 2px}
+.scp-unconf-big{font-size:26px;font-weight:700;color:#9aa0a8}
+.scp-unconf-note{font-size:12px;color:#b45309;margin-top:4px}
+.scp-unconf-bar{margin-top:4px;padding:4px 10px;border-radius:8px;background:#f4f2f0;color:#6a6a6a;font-size:11.5px;font-weight:600}
+.scp-cat{margin-top:12px}
+.scp-cat-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:13px}
+.scp-issue{background:#fff;border:1px solid #eee;border-left:3px solid #c81e2b;border-radius:8px;padding:10px 12px;margin-bottom:9px}
+.scp-issue.scp-warning{border-left-color:#b45309}
+.scp-issue.scp-fyi{border-left-color:#1e40af}
+.scp-issue-saw{font-weight:600;font-size:12.5px;color:#242a31}
+.scp-q{margin-top:6px;font-size:13px;color:#17191d}
+.scp-choices{margin-top:7px;display:flex;flex-wrap:wrap;gap:6px}
+.scp-choice{background:#f3f6fb;border:1px solid #dbe4f0;border-radius:100px;padding:3px 10px;font-size:11px;color:#1e40af}
+.scp-affects{margin-top:6px;font-size:10.5px;color:#8a8a8a}
+.scp-cite{margin-top:4px;font-size:10.5px;color:#a0a0a0}
+</style>
+<style id="scp-v5">
+/* ================= THE HERO, 17 JUL: HE TALKS ON THE LEFT, THE FLAGS SIT ON THE RIGHT =========
+   The six stacked bands are gone (greeting / receipt / chip row / verdict / risk / diff band).
+   Every one of them was full-width, so every one was a peer of every other, and the card had no
+   first thing to read. It is two columns now, and the split is by REGISTER, not by importance:
+     .hero-say   a person saying the one thing that matters, in a sentence
+     .hero-rail  the things that are simply true this morning, one line each
+   Geometry: hero is 1048x240 at left:1. Say column 44 -> 620. Rail 660 -> 1019, hairline at 640.
+   Nothing here is absolutely positioned into the other's column — that is what let the old chip
+   row paint 180px outside the card. Two boxes, one divider, each keeps to itself. */
+.hero{padding:0 !important}
+.hero-say{position:absolute;left:44px;top:34px;width:576px;bottom:26px}
+.hero-rail{position:absolute;left:660px;top:34px;right:29px;bottom:26px;
+  display:flex;flex-direction:column;justify-content:center;gap:13px}
+.hero-rail:before{content:"";position:absolute;left:-20px;top:6px;bottom:6px;width:1px;background:#e7e2dd}
+
+/* THE GREETING STILL LOSES TO THE SENTENCE. It is the doorway, not the message: 20px muted over
+   a 17px near-black paragraph, because the paragraph is the only thing on this card that tells
+   you what to DO. (v5 learned this the hard way at 30px, where the eye hit the rep's own name
+   first and the verdict fourth.) */
+.hero .hero-say h1{font-size:20px;font-weight:500;color:#5b6c8c;letter-spacing:-.02em;margin:0;transform:none;display:block}
+/* the sentence. 17/1.62 — book-length measure at ~52 characters, so the eye tracks it as prose
+   rather than scanning it as a label. Two lines on the demo, three at its worst; the box is sized
+   for four (176px) so a long name can never push the receipt off the desk. */
+.hero .say{margin:11px 0 0;font-size:17px;line-height:1.62;color:#242a31;font-weight:420;
+  max-width:534px;max-height:176px;overflow:hidden}
+.hero .say b{font-weight:640;color:#12141a;letter-spacing:-.01em}
+/* the receipt is pinned to the FOOT of the say column, not floated under the greeting: it is the
+   footnote to the sentence above it (which file this all came from), and a footnote sits at the
+   bottom. #7d8596 clears 4.5:1 on the card — trust evidence you cannot read is not evidence. */
+.hero .receipt{position:absolute;left:0;bottom:0;margin:0;color:#7d8596;font-size:11px;font-weight:500;letter-spacing:.01em}
+
+/* ---- the rail: a dot, a number, a noun. Nothing is a verdict here. ---- */
+.hero .flag{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:460;color:#2c3138;
+  white-space:nowrap;line-height:1.2}
+.hero .flag b{font-weight:640;color:#12141a}
+/* background:none is not belt-and-braces, it is the fix: `.red` and `.amber` in the shell are
+   BACKGROUND rules for its bullet dots, so any flag carrying one painted as a solid bar. The dots
+   here are .fdot and colour themselves; the row never has a fill. */
+.hero .flag{background:none}
+.hero .flag .fdot{width:7px;height:7px;border-radius:100px;background:#98a2b3;flex:none}
+.hero .flag.scp-f-red .fdot{background:#e0384a}
+.hero .flag.scp-f-amber .fdot{background:#d9901c}
+.hero .flag.cold .fdot{background:#8a94a6}
+.hero .flag.click{cursor:pointer}
+.hero .flag.click:hover b,.hero .flag.click:hover span{color:#344a74}
+/* the issue flag keeps its colour and loses its pill. A pill in a column of plain lines is a
+   button, and this is not a button — it is the one line here you must clear before the numbers
+   below are safe, so it earns a red word, not a badge. */
+.hero .scp-issue-chip-lite{color:#b45309;background:none;border-radius:0;padding:0;font-weight:460}
+.hero .scp-issue-chip-lite.scp-f-red{color:#c81e2b}
+.hero .scp-issue-chip-lite b{color:inherit !important}
+
+/* ---- the diff, demoted to the rail's footnote ---- */
+.hero .diff-band{margin-top:5px;padding-top:12px;border-top:1px solid #ece7e2;cursor:pointer}
+.hero .diff-label{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9aa3b2;margin-bottom:5px}
+.hero .diff-counts{font-size:12px;color:#6b7994;font-weight:450;white-space:nowrap}
+.hero .diff-counts b{font-weight:660;font-size:12.5px}
+.hero .diff-counts i{font-style:normal;color:#c7cdd8;margin:0 6px}
+.hero .diff-band:hover .diff-link{color:#12141a}
+.diff-link{font-weight:650;color:#344a74;margin-left:4px}
+.dc-new{color:#067a44}.dc-moved{color:#3f6b8a}.dc-slip{color:#a36a00}.dc-gone{color:#8a4550}
+/* the zones the two columns replaced. Killed here rather than in the shell so the shell's mock
+   markup still measures against its own trace. */
+.hero .insights,.hero .move,.hero .concentration,.hero .intro,.hero .ask,.hero .activity-list,.hero .activity-link{display:none !important}
+/* ---- v5: ranked plan ---- */
+.plan-sub{margin-left:14px;font-size:10px;color:#4d6387;font-weight:600;letter-spacing:0}
+.task .rank{width:16px;height:16px;border-radius:50%;background:#eceff5;color:#42577b;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.task .why{font-style:normal;color:#8b96ad;font-size:11px;margin-left:7px}
+/* ---- v5: pipeline target — folded into .pipeline-sub, no longer its own line ---- */
+.scp-target{margin-top:4px;font-size:11px;color:#42577b;font-weight:600}
+.scp-target-set{margin-top:4px;font-size:11px;color:#344a74;font-weight:650;cursor:pointer}
+/* AFTER .scp-target on purpose: the inline target carries both classes (.scp-target is the hook
+   the D6 assertion reads), so this has to win the colour/weight. */
+.scp-target-in{color:#344a74;font-weight:650}
+/* the sub-line now carries the target too, and the card is a fixed box on a drawn desk: if this
+   ever wraps, the card grows and hangs over the desk's front edge again. It must stay one line. */
+.pipeline-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- v5: fix-my-data takeover ---- */
+.fixview{position:absolute;inset:0;z-index:5;background:#f8f7f5;padding:16px 22px;overflow:auto}
+.fixview[hidden]{display:none}
+.fix-head{position:relative;padding:6px 6px 0}
+.fix-title{margin:0;font-size:30px;font-weight:560;letter-spacing:-.035em;color:#17191d}
+.fix-sub{margin:10px 0 0;color:#394f78;font-size:13.5px;font-weight:500}
+.fix-progress{position:absolute;right:180px;top:8px;font-size:12px;color:#374b70;font-weight:570;display:flex;align-items:center;gap:10px}
+.fix-dots{display:flex;gap:5px}
+.fix-dots i{width:9px;height:9px;border-radius:50%;background:#e2ddd8;display:block}
+.fix-dots i.done{background:#0cba58}.fix-dots i.live{background:#ffbd2e}
+.fix-back{position:absolute;right:2px;top:8px;font-size:12px;font-weight:600;color:#344a74;cursor:pointer}
+.fix-cols{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-top:26px}
+.fix-main{display:flex;flex-direction:column;gap:12px}
+.fix-resolved{display:flex;align-items:center;gap:12px;padding:13px 18px;font-size:12.5px;color:#2c4a35;background:rgba(240,250,243,.95);border-color:#cfe6d6}
+.fix-resolved .check{color:#0cba58;font-size:18px}
+.fix-resolved .fix-delta{margin-left:auto;font-weight:650;color:#067a44;font-size:12px;text-align:right}
+.fix-card{padding:20px 24px}
+.fix-card.live{border-color:#e8c877;box-shadow:0 7px 18px rgba(75,55,42,.07),inset 0 1px 0 rgba(255,255,255,.96),0 0 0 3px rgba(255,189,46,.12)}
+.fix-card-top{display:flex;align-items:center;gap:12px;font-size:15px}
+.fix-n{width:22px;height:22px;border-radius:50%;background:#ffbd2e;color:#5b4200;font-size:11.5px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px}
+.fix-n.q{background:#eceff5;color:#42577b}
+.fix-line{font-size:11px;color:#8b96ad}
+.fix-stake{margin-left:auto;font-weight:700;font-size:14px;color:#17191d}
+.fixview .lbl{font-size:9.5px;font-weight:750;letter-spacing:.09em;color:#5b6c8c;margin-bottom:6px}
+.fix-saw{margin-top:14px;font-size:13px;color:#2f3c55}
+.fix-saw .lbl{display:block}
+.fix-why{margin-top:12px;font-size:13.5px;line-height:1.55;color:#394f78;font-weight:500}
+.fix-answers{display:flex;gap:9px;margin-top:18px;flex-wrap:wrap}
+.fixview .fa{border:1px solid #d5d0cb;border-radius:10px;background:#fdfcfb;padding:9px 15px;font-size:12.5px;font-weight:600;color:#2f3c55;font-family:inherit;box-shadow:inset 0 1px 0 #fff,0 1px 3px rgba(0,0,0,.05);cursor:pointer}
+.fixview .fa:hover{border-color:#b9c4d8}
+.fixview .fa.skip{color:#6b7994}
+.fix-queue,.fix-disc{display:flex;flex-direction:column;gap:8px}
+.fix-qrow{display:flex;align-items:center;gap:12px;padding:11px 18px;font-size:12.5px;color:#42577b;opacity:.85}
+.fix-qwhat{color:#6b7994;font-size:12px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fix-qrow .fix-stake{font-size:12.5px}
+.fix-tone{font-size:11.5px;color:#8b96ad;padding:2px 4px}
+.fix-side{display:flex;flex-direction:column;gap:12px}
+.fix-payoff,.fix-receipt{padding:16px 18px}
+.pay-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#2f3c55;padding:7px 0;border-bottom:1px solid #eee9e4}
+.pay-row:last-of-type{border-bottom:0}
+.pay-row span:first-child{width:74px;color:#5b6c8c;font-weight:600;font-size:11.5px}
+.pay-old{color:#9aa5ba;text-decoration:line-through}
+.pay-arrow{color:#9aa5ba}
+.pay-new{font-weight:750;color:#067a44}
+.pay-pending{color:#a36a00;font-size:11.5px}
+.pay-note{margin-top:10px;font-size:10.5px;color:#8b96ad}
+.rec-line{font-size:13px;font-weight:650;color:#17191d}
+.rec-line.muted{font-size:11.5px;font-weight:500;color:#6b7994;margin-top:4px}
+.fix-copy-ta{width:100%;height:82px;margin-top:12px;border:1px solid #e0dbd6;border-radius:8px;background:#fff;padding:8px 10px;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;line-height:1.4;color:#2f3c55;resize:vertical}
+.rec-patch{display:inline-block;margin-top:10px;font-size:11.5px;font-weight:650;color:#344a74;border:0;background:transparent;padding:0;cursor:pointer;font-family:inherit}
+</style>
+<style id="scp-book">
+/* ---- THE BOOK (tab 2). Same tokens as v5 (warm card #fcfbfa, slate #42577b/#5b6c8c, green
+   #067a44, amber #b45309, red #c81e2b). No new palette: one product, second view. The Desk is a
+   fixed at-a-glance stage; the Book is the one surface allowed to scroll. ---- */
+.topbar .brand-left{pointer-events:auto}
+.scp-tabs{display:inline-flex;gap:2px;margin-left:8px;padding:2px;border-radius:9px;background:#eceff5;vertical-align:middle}
+.scp-tab{font-size:11.5px;font-weight:640;color:#7b8598;padding:3px 10px;border-radius:7px;letter-spacing:-.01em;cursor:pointer}
+.scp-tab:hover{color:#42577b}
+.scp-tab.on{background:#fcfbfa;color:#1f3252;box-shadow:0 1px 2px rgba(0,0,0,.09),inset 0 1px 0 #fff}
+.scp-crumb{color:#4b5e83;font-weight:600}
+.scp-crumb .dot{padding:0 8px;color:#585d66}
+/* The Book sets its OWN base size. It used to set none, so it inherited the browser's 16px default
+   while every .scp-drow it borrows from the drill-ins was designed against the modal body's 13px.
+   The ledger rendered at 45px a row: 20 deals spent 924px, and a real 400-deal book would have been
+   a 20,000px scroll of one-and-a-half-line rows. The Book is allowed to scroll — that is not a
+   licence to be twice the size of the product it belongs to. Same ink, same density as the Desk. */
+.bookview{position:absolute;inset:0;z-index:5;background:#f8f7f5;padding:16px 22px 30px;overflow:auto;font-size:13px;color:#242a31;line-height:1.5}
+.bookview[hidden]{display:none}
+/* ---- the ledger table: ONE box holds the header and the rows ----
+   The header was a sibling above .book-scroll, whose 12px padding + 1px border pushed every row
+   13px right of the column head naming it. Nesting removes the class of bug rather than tuning it:
+   the head and its rows now share a padding box, so they cannot drift apart again.
+   Sticky, because the Book is the one surface that scrolls: on deal 300 of 400 an unlabelled
+   column of numbers is not a ledger. */
+/* CAPPED, AND THE CAP MUST ANNOUNCE ITSELF. A 280px table of 35px rows shows 7 of 8 promises under
+   a head reading "8 open" — and the overlay scrollbar this platform draws is invisible until you
+   already know to scroll there. That is the panel's own founding defect wearing a nicer coat: a
+   card that says 8 must account for 8. So the scrollbar is drawn permanently, a fade marks the cut,
+   and every capped table carries a line accounting for its full count. */
+.book-table{position:relative;border:1px solid #eee9e4;border-radius:8px;background:#fdfcfb;max-height:340px;overflow-y:auto;padding:0 12px;scrollbar-width:thin;scrollbar-color:#cfc8c1 transparent}
+.book-table.tall{max-height:460px}
+.book-table::-webkit-scrollbar{width:9px}
+.book-table::-webkit-scrollbar-track{background:transparent}
+.book-table::-webkit-scrollbar-thumb{background:#d6cfc8;border-radius:100px;border:2px solid #fdfcfb}
+.book-table::-webkit-scrollbar-thumb:hover{background:#bdb4ac}
+/* the fade sits on the table, not in the scroller, so it marks the cut without moving with the rows.
+   It is painted ONLY while there are rows below: .overflows and .at-end are set by markOverflow()
+   from a real measurement. A fade on a list that fits dims a real row to advertise nothing. */
+.book-fade{position:relative}
+.book-ledger.overflows:not(.at-end) .book-fade::after{content:"";position:absolute;left:1px;right:10px;bottom:1px;height:22px;border-radius:0 0 8px 8px;background:linear-gradient(rgba(253,252,251,0),#fdfcfb);pointer-events:none}
+.book-count{margin-top:8px;font-size:10.5px;color:#8b96ad}
+.book-hint{display:none}
+.book-ledger.overflows .book-hint{display:inline}
+.book-table .book-th{position:sticky;top:0;z-index:1;background:#fdfcfb}
+.book-rows>.scp-drow:last-child{border-bottom:0}
+/* the stage label parks at the top of the scroller while its own deals pass under it */
+.book-table .book-stick{position:sticky;top:0;z-index:1;background:#fdfcfb;margin:0 -12px;padding:9px 12px 5px}
+.book-table .book-stage:first-child .book-stick{padding-top:11px}
+/* the row is a door now (stale + commitments): it must look like one on the way in */
+.bookview .scp-drow.click{margin:0 -12px;padding-left:12px;padding-right:12px;border-radius:0}
+.bookview .scp-drow.click:hover{background:rgba(63,95,74,.055)}
+.book-th .click{cursor:pointer;position:relative}
+.book-th .click:hover{color:#1f5f4a}
+.book-th .click.sorted{color:#1f5f4a}
+/* the sort arrow is generated, so a column can never claim a direction it isn't sorted in */
+.book-th .click.sorted[data-dir="down"]::after{content:" ↓"}
+.book-th .click.sorted[data-dir="up"]::after{content:" ↑"}
+.book-top{position:relative;padding:6px 6px 0;margin-bottom:16px}
+.book-sec{padding:20px 24px;margin-bottom:12px}
+.book-trust{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:9px 16px;border-radius:9px;background:#fcfbfa;border:1px solid #e4dfda;font-size:11.5px;font-weight:600;color:#5b6c8c;box-shadow:inset 0 1px 0 #fff}
+.trust-open{margin-left:auto;color:#b45309;font-weight:650;cursor:pointer}
+.trust-open:hover{color:#8a4a08}
+.trust-ok{margin-left:auto;color:#067a44;font-weight:650}
+.book-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.book-head h2{margin:0;font-size:11px;font-weight:750;letter-spacing:.09em;color:#2f3c55}
+.book-sub{margin-left:12px;font-size:10px;font-weight:600;color:#8b96ad;letter-spacing:0;text-transform:none}
+.book-meta{font-size:11px;color:#5b6c8c;font-weight:600}
+.book-lbl{font-size:9.5px;font-weight:750;letter-spacing:.09em;color:#5b6c8c;margin:14px 0 6px}
+.book-big{font-size:38px;font-weight:600;letter-spacing:-.035em;color:#17191d;line-height:1}
+.book-bigsub{margin-top:6px;font-size:12px;color:#5b6c8c;font-weight:500}
+.book-cov{display:grid;grid-template-columns:1fr 320px;gap:28px;align-items:start}
+.book-bar{margin-top:12px;height:9px;border-radius:100px;background:#eceff5;overflow:hidden}
+.book-bar i{display:block;height:100%;border-radius:100px;background:#1f5f4a}
+.book-bar i.full{background:#067a44}
+.book-bar.sm{margin:0;height:6px;flex:1 1 auto}
+.book-gap{margin-top:10px;font-size:13px;font-weight:650}
+.book-good{color:#067a44}.book-bad{color:#b45309}
+.book-kvs{display:flex;flex-direction:column;gap:1px}
+.book-kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #eee9e4;font-size:12.5px;color:#5b6c8c}
+.book-kv b{color:#17191d;font-weight:650}
+.book-kv:last-child{border-bottom:0}
+.book-note{margin-top:11px;font-size:11px;color:#8b96ad;line-height:1.5}
+.book-prov{margin-left:8px;font-size:10.5px;color:#8b96ad}
+.book-callout{margin:10px 0 14px;padding:11px 14px;border-radius:9px;background:#f3f6fb;border:1px solid #dbe4f0;font-size:12.5px;color:#2f3c55;line-height:1.5}
+.book-callout.warn{background:#fef6ec;border-color:#f0dcbe;color:#7a4a08}
+.book-callout.good{background:#f0faf3;border-color:#cfe6d6;color:#2c4a35}
+.book-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12.5px;color:#2c4a35}
+.book-row .check{color:#0cba58}
+.book-th{font-size:9.5px;font-weight:750;letter-spacing:.06em;color:#5b6c8c;text-transform:uppercase;border-bottom:1px solid #e0dbd6}
+.book-days{color:#f3a500;font-weight:800;font-size:12px;text-align:right}
+/* THE COLUMN TEMPLATE LIVES ON THE TABLE, not on the rows. Stated per-row, the header and its data
+   rows each had to remember to claim the same modifier — the header didn't, fell back to the
+   3-column default against 4-column rows, and "Value" wrapped onto a line of its own. Worse, when
+   the header DID claim .st to fix that, it became a stale row: the gate counting .scp-drow.st read
+   4 deals where the file had 3. A header is not a row. One template, one box, both by construction. */
+.bookview .scp-drow{grid-template-columns:1fr 44px 64px}
+.bookview .book-table.t-st .scp-drow{grid-template-columns:1fr 92px 48px 74px}
+.bookview .book-table.t-cm .scp-drow{grid-template-columns:1.4fr 1fr .8fr 64px 66px}
+.bookview .book-table.t-sk .scp-drow{grid-template-columns:64px 1fr}
+.book-stage{margin-bottom:6px}
+@media (max-width:900px){.book-cov{grid-template-columns:1fr}}
+
+/* ---- CSV-only desk: empty-state collapse (SHIP-PLAN §3) ----
+   No calendar and no email means the meetings and commitments cards have no data source. Rather
+   than two large hollow boxes, hide them, let the plan span the full width and depth, and drop in
+   ONE thin strip that offers to connect. Overrides win by #id specificity + load order (this file is
+   injected after the shell styles). The moment either connector carries a row, .csv-only is removed
+   and the tuned two-card desk returns untouched. */
+#stage.csv-only .meetings,#stage.csv-only .commitments{display:none;}
+#stage.csv-only .plan{left:1px;width:1048px;height:432px;}
+#stage .connect-strip{display:none;}
+#stage.csv-only .connect-strip{
+  display:flex;align-items:center;gap:9px;
+  position:absolute;left:1px;top:690px;width:1048px;height:34px;
+  padding:0 24px;border:1px dashed var(--line);border-radius:12px;background:var(--paper-2);
+  font-size:12.5px;color:var(--slate);font-weight:500;letter-spacing:-.01em;box-shadow:none;
+}
+#stage.csv-only .connect-strip .cs-dot{width:7px;height:7px;border-radius:50%;background:var(--navy);opacity:.5;flex:none;}
+</style>

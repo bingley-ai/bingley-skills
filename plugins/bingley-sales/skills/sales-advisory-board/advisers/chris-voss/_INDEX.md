@@ -1,0 +1,38 @@
+# Chris Voss — Transcript Corpus Index
+
+32 curated teaching transcripts, pulled free from the Black Swan Group YouTube channel + keynote/interview uploads, auto-captions cleaned to plain text.
+
+- -at52cSECho - Chris Voss Speaks on Tactical Empathy at The World Economic Forum 2025  (4728 words)
+- 0mUMncgUCAI - STOP Letting Yes Ruin Your Sales  (649 words)
+- 1ZJG9PJfmss - Chris Voss Business Keynote Speaker  (10449 words)
+- 37VA3dBy8dA - Negotiation Myths That Kill Your Sales  (784 words)
+- 7OqEGgBb4YY - STOP Sending Emails that Get Ignored  (4771 words)
+- 9CLWxThRDSA - 1 Trick To Build Trust With ANY Client  (1192 words)
+- Eu73ut5vBZs - Top 5 Deal Killersand How to Stop Them  (746 words)
+- FZ-CNt3VQnE - Why Forcing a Yes Is Killing Your Salesand how to fix it  (526 words)
+- GwKoxnIvZJI - Hostage Negotiator Reveals Psychological Tricks To Win Any Deal  Chris Voss  (14649 words)
+- M6DdRistr3w - Negative Self-Talk is LOSING You Sales  (5273 words)
+- PHqtfh9Re9M - Chris Voss Master Business Negotiations Like A Pro With A Former FBI Negotiator  (9190 words)
+- QMuSkU2Byso - How to Get the Upper Hand in ANY Take it Or Leave it Deal  (905 words)
+- R38m5g_-W4M - How to listen between the lines to turn Adversaries into Partners  (1559 words)
+- SvOio6YabIY - Use this Secret To Ask for Something and INCREASE Sales  (1658 words)
+- XuMsG-PoIPE - Talk Like a Pro Master Labels Mirrors  Questions to Win Any Conversation  (425 words)
+- ZqXiJlBfmO4 - Top FBI Negotiator The Art Of Negotiating To Get ANYTHING You Want  Chris Voss  (16888 words)
+- ZwgndW0CCF4 - Chris Voss - Author of Never Split the Difference  (13332 words)
+- bGSc8d7Gvn0 - USE This Skill To Remove You as The Threat in Negotiation  (1244 words)
+- cgTZayRBIDc - Dont Let Them Trick You into a Lower Price  (1135 words)
+- ghaFAiXT3G0 - STOP Making This Negotiation Mistake Listening Is Key  (1057 words)
+- hV4sAxhiRBc - Your Addiction to This Word is LOSING You Deals  (9054 words)
+- jr0L6Z9WciQ - Aggressive Negotiator Try This  (887 words)
+- pKJHj1BX-YM - How Leaving Ego at The Door will Change Your Negotiation  (1157 words)
+- qmdCDJtMXuE - How To STOP Verbal Attacks in Negotiation  (1242 words)
+- s8oTmfx1c9Q - How to get 5X YES in Negotiation  (7208 words)
+- sORtpnkq97U - STOP Losing Deals by  Saying at the Surface Level  (972 words)
+- u2CYUa8DRB4 - This Secret Phrase Transforms Deals Instantly- Magic Wand Phrases  (556 words)
+- uaAvX-61zv8 - The One Phrase that Revives Ghosted Deals  (698 words)
+- vPxdT4SNsrY - STOP Making This Mistake With Establishing Trust  (8544 words)
+- wvi62jNHIfI - How Dynamic Silence Will Win You More Deals Than Anything Else  (1092 words)
+- yPsvgmZlVuQ - Chris Voss on Tactical Empathy  Successful Negotiation  Performance Coaching  (12829 words)
+- yTF3qQUXiDE - How To UNFCK Your Sales In 15 Minutes or Less  (915 words)
+
+Total: 136314 words across 32 transcripts (~272 pages).

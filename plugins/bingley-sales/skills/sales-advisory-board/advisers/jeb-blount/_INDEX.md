@@ -1,0 +1,35 @@
+# Jeb Blount — Transcript Corpus Index
+
+29 curated teaching transcripts, pulled free from the Sales Gravy YouTube channel, auto-captions cleaned to plain text.
+
+- -h29cmOg5L4 - The Cold Truth About Cold Calling Money Monday  (1548 words)
+- 6l106S-Hu8w - Why Cold Calling Will Never Die  Ask Jeb Blount  (5492 words)
+- 8KeF3Xt7p1E - Jeb Blount on Building Consistent Prospecting Habits  Ask Jeb Blount  (1667 words)
+- 931HEdqpLTw - How to Stop Prospects from Ghosting You  Ask Jeb Blount  (2230 words)
+- 9UmgG25bmDI - How to Cold Call Busy People and Actually Get the Meeting  Ask Jeb Blount  (2865 words)
+- BYkhCxHZpvE - How to Fix an Empty Sales Pipeline NOW Money Monday  (2222 words)
+- CpLKml_FpKs - How Top Sales Reps Manage Emotions and Stay Consistent on Every Call  Ask Jeb Bl  (3637 words)
+- EXHhjPLnZKE - How to Use LinkedIn to Fill Your Pipeline and Close More Deals  The Sales Gravy   (10644 words)
+- EppsCQnYWu0 - How to Use the Ledge Technique for Sales Objection Handling  Ask Jeb Blount  (3189 words)
+- FAtqw8PTw6Y - Sales Storytelling That Actually Works How to Read the Room  Win Every Pitch  Sa  (6231 words)
+- HOk8QzWsNIo - How to Handle Decision Deferment Objections Money Monday  (2103 words)
+- LnvAmjBkQa4 - Main Character Syndrome Why Prospects Tune You Out Money Monday  (1329 words)
+- MYhxSISujE8 - Stop Getting Ghosted and Win More Deals Using Neurostrategy  Sales Gravy Podcast  (7419 words)
+- OVMejP4t6bo - Moneyball for Sales Why Youre Tracking the Wrong Metrics  Money Monday  (1341 words)
+- OyJqlxerqkY - Protect Your Golden Hours The Prospecting Habit That Guarantees You Hit Quota  M  (1942 words)
+- ScKcNBe_qPY - The Prospecting Pace Paradox  Money Monday  Sales Gravy Podcast  (1604 words)
+- TjOdOEdrtcM - The Follow Up Flywheel How to Close High Ticket Deals Without Being Pushy  The S  (7352 words)
+- U-O6K1U4XOM - Your Calendar Is Lying About Why Youre Not Prospecting Money Monday  (1237 words)
+- U7Xyr45dqks - How to Fix Your Sales Teams Hidden Revenue Leaks  The Sales Gravy Podcast  (7490 words)
+- UV8GHIEkkZA - Dirty Pipelines Dont Close Deals  Ask Jeb Blount  (4453 words)
+- dbo7Q-eYxUA - Why Prospects Ghost You And How to Fix It  Ask Jeb Blount  (4236 words)
+- fqDiCZS-tpo - Sales Call Reluctance Rebuilding Your Prospecting Confidence  Ask Jeb Blount  (3399 words)
+- k4aDsOC4-ck - The BTN Prospecting Method Money Monday  (2204 words)
+- lK8enndO1YQ - How Much Research Before Cold Calling Stop the Productivity Trap  Ask Jeb Blount  (4767 words)
+- oQMWoUvw0Vo - How to Close More Deals by Qualifying Slow Buyers the Right Way  Ask Jeb Blount  (3416 words)
+- qb9gkaJST2U - Your Attitude Walks Into Every Sales Call Before You Do  Money Monday  (1335 words)
+- sktmNonPto0 - Emotion Drives Every Buying Decision in Sales  Jeb Blount  Money Monday  (1179 words)
+- tqeezOIbYAg - Overcoming the Im Too Busy Objection  Ask Jeb Blount  (1975 words)
+- xeuQO_CgZCo - Sales Rejection The Neurophysiology of Fear  Ask Jeb Blount  (2569 words)
+
+Total: 101075 words across 29 transcripts (~202 pages).
