@@ -14,11 +14,13 @@ Each one is its own plugin — install only the ones you want.
 
 ## Install
 
-Easiest: the guided installers at **[bingley.ai](https://bingley.ai)**.
+Easiest: each skill's page on **[bingley.ai](https://bingley.ai)** has a copy-paste install
+prompt — paste it into a Claude Cowork chat, click **Save skill**, done. It always fetches the
+current version from this repo.
 
-By hand, in the Claude desktop app: Settings → Plugins → Add marketplace → paste
-`bingley-ai/bingley-skills` → install the skills you want. Each installs and updates
-on its own; none requires the others.
+Prefer the marketplace (installs update themselves): in the Claude desktop app,
+Settings → Plugins → Add marketplace → paste `bingley-ai/bingley-skills` → install the skills
+you want. Each installs and updates on its own; none requires the others.
 
 ## First thing to type
 
