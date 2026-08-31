@@ -1,7 +1,7 @@
 {
   "name": "sales-control-panel",
   "displayName": "Sales Control Panel",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Reads any deals export and renders your desk: what to do in the next hour, and whether your pipeline can be trusted.",
   "author": {
     "name": "Bingley"

@@ -1,6 +1,6 @@
 ---
 name: company-researcher
-version: 1.0.0
+version: 1.0.1
 description: |-
   Understand companies, one or four thousand, in the same skill. Researches what they do, why now plus the angle to use, how they make money, size and competitors, and renders every run as one ranked list where each row opens that company's full cheat sheet. Use for "research [company]", "cheat sheet on [company]", "tell me about [company]", "prep me on [company]", "I've a call with [company]", "what do [company] do", AND for whole lists: "grade my prospects", "score / qualify this list", "scan these companies", "go through these 200 companies", or a dropped Excel/CSV or pasted list of names/domains. Deep research per company, so a long list runs long: it estimates the time and confirms first, and never refuses a list for being long. Default is neutral research on free web data; with a business profile loaded it also ranks every company Strong / Fair / Longshot. NEVER calls Apollo, spends credits, enriches contacts or writes the email — list-building and email-writing are separate skills.
 ---
@@ -52,6 +52,27 @@ Do these in order, once per run, before any research. Nothing else claims to be 
    ask in plain words: *"Paste your list of accounts (company names or domains), or drop an
    Excel/CSV and I'll scan it."* **Never call it "the book" to the user**; that's internal
    shorthand. To them it is their list.
+
+   **"I don't have a list / I don't know who to research" is not a dead end** (added 31 Aug 2026
+   after cold-run testing — this exact turn had no scripted path). Offer the smallest real start,
+   in one line: *"Name any one company you're curious about — a competitor, a customer, someone
+   you admire — and I'll show you what this does. Or tell me who you sell to and I'll suggest a
+   couple of well-known names in that world to start with."* Never shrug, never bounce them to
+   another tool as the only answer.
+
+   **Messy rows — the person-name rule generalises** (added 31 Aug 2026; previously only the
+   person case was written down and everything else rode on judgement). A real export contains
+   junk. Before researching, sweep the ingested rows and SURFACE what you're skipping — never
+   silently research it, never silently drop it:
+   - a row that is a phone number, email address, or bare number → skip, tell them;
+   - placeholder rows ("test test", "asdf", "delete me", obviously fake domains) → skip, tell them;
+   - duplicates after normalising case/whitespace ("Greggs" / "GREGGS") → research once, say so;
+   - a malformed row (column shift, unquoted commas splitting a name like "Bakers, Butchers & Co")
+     → reconstruct if the fix is obvious (a "domain" cell with no dot is a broken name, not a
+     domain), otherwise ask — never pass a fragment to research;
+   - empty rows and header/banner junk ("Exported from CRM…") → drop silently, these need no ceremony.
+   One short line before the run covers it: *"Skipping N rows that aren't companies (a phone
+   number, two test rows), deduped one repeat — researching the other M."*
 2. **Read the brain** — `python3 scripts/brain_bridge.py get --skill company-research --base
    "<wf>/Claude HQ"`. Branch on the `profile` block (see Data access below). If the `get` fails
    for ANY reason, proceed as profile-empty; never stall the run on the brain.

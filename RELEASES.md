@@ -1,8 +1,49 @@
 # Releases
 
 Each skill is now its own plugin and versions independently. Current versions:
-cold-email-builder 1.0.0 · company-researcher 1.0.0 · list-builder-apollo 1.0.0 ·
-sales-advisory-board 1.0.0 · sales-brain-setup 1.0.0 · **sales-control-panel 1.1.1**.
+cold-email-builder 1.0.0 · **company-researcher 1.0.1** · **list-builder-apollo 1.0.1** ·
+sales-advisory-board 1.0.0 · **sales-brain-setup 1.0.1** · **sales-control-panel 1.2.0**.
+
+## sales-control-panel v1.2.0 — 31 Aug 2026
+
+Fixes from a 30-run cold-start test of all six skills (every scenario run as a brand-new user).
+
+- **Duplicate rows are now caught even without a deal-id column.** Before this, a deal exported
+  twice was silently counted twice — your pipeline number was quietly wrong. Now exact duplicate
+  rows (same deal, company, value, stage and close date) count once, and the panel tells you it
+  found them and lets you choose which row wins.
+- **Stage guesses are always disclosed.** When your stage names don't match the standard ones
+  (say "Proposal Sent"), the engine maps them to the nearest stage to weight your pipeline. It
+  now always tells you which guesses it made and how to correct them — before, it only mentioned
+  this if something else was also wrong with the file.
+- The skill now says plainly when a request belongs to a sibling skill (writing the cold email,
+  building a prospect list, deep company research) instead of leaving that to chance.
+
+## company-researcher v1.0.1 — 31 Aug 2026
+
+- **No list? Not a dead end any more.** Say "I don't know who to research" and it offers a real
+  starting point instead of waiting for a list you don't have.
+- **Messy files handled by rule, not luck.** Phone numbers, test rows, duplicates and broken rows
+  in your export are now skipped or repaired *and you're told exactly what was skipped and why* —
+  none of it is silently researched or silently dropped.
+
+## list-builder-apollo v1.0.1 — 31 Aug 2026
+
+- **Consumer targets are caught early.** Apollo only holds businesses — if your buyers are
+  individuals (wedding clients, homeowners), it now says so up front and helps you reframe,
+  instead of running a search that can't work.
+- **"Is this costing me money?" now has one fixed, honest answer** — what's been spent, what's
+  free, what the next paid step costs — and asking never restarts your run.
+- The skill now declines sibling jobs (writing your cold email, deep single-company research) by
+  name instead of improvising, and never invents company facts from memory.
+
+## sales-brain-setup v1.0.1 — 31 Aug 2026
+
+- **The "delete it" instruction is now the whole truth.** Deleting the `ledger` folder stops the
+  tools keeping copies; erasing everything the brain knows means deleting the whole `Claude HQ`
+  folder in your working folder. The finish screen now says both.
+- Internal fix: the silently-derived "first move" suggestion is stored as a guess, not as
+  something you confirmed.
 
 ## sales-control-panel v1.1.1 — 31 Aug 2026
 

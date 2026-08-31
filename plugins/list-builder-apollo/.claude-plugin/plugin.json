@@ -1,7 +1,7 @@
 {
   "name": "list-builder-apollo",
   "displayName": "List Builder: Apollo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "End-to-end prospecting on a connected Apollo account. Every credit spend sits behind its own explicit confirm.",
   "author": {
     "name": "Bingley"

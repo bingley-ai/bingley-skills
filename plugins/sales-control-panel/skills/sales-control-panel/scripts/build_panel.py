@@ -641,6 +641,24 @@ def main():
 
     # ---- aggregation (line items) vs dedupe ----
     has_product = "product" in mapping
+    # D2b: no id column -> row-positional synthetic ids made every duplicate row invisibly unique,
+    # so an exported-twice deal double-counted the pipeline with ZERO disclosure (cold-run 31 Aug
+    # 2026, run 28 — the one FAIL). Fix: exact MATERIAL duplicates (same normalised name + company
+    # + raw value + currency + raw stage + raw close) share the first row's synthetic id, so the
+    # normal dedupe machinery below sees them and the duplicate_rows warning discloses them. Rows
+    # that differ on any material field keep distinct ids — two genuinely separate "Renewal / Acme"
+    # deals at different values never merge. Skipped when a product column exists: identical line
+    # items on one order are legitimate there and the aggregation branch must keep them.
+    if "deal_id" not in mapping and not has_product:
+        _fp_groups={}
+        for p in parsed:
+            _fp=(norm_header(p["name"] or ""),norm_header(p["company"] or ""),
+                 str(p.get("value")),str(p.get("cur")),
+                 norm_header(p["stageraw"] or ""),norm_header(p["close_raw"] or ""))
+            _fp_groups.setdefault(_fp,[]).append(p)
+        for _g in _fp_groups.values():
+            for p in _g[1:]:
+                p["deal_id"]=_g[0]["deal_id"]
     deals=[]; dupes=[]; agg_note=None; mismatch_rows=[]; id_reused=[]
     if has_product:
         groups={}
@@ -1033,9 +1051,10 @@ def main():
                 "Confirm which figure to trust; line-item sum is used by default.")
     if dupes:
         fresher=[d for d in dupes if d["fresher"]]
+        _dup_what = "duplicate deal id(s)" if "deal_id" in mapping else "row(s) that duplicate another row exactly (same deal, company, value, stage and close date)"
         add_issue("duplicate_rows","warning",[d["line"] for d in dupes],
-            f"{len(dupes)} duplicate deal id(s); policy = {dedupe_policy}"+(f"; {len(fresher)} discarded row is FRESHER than the kept one" if fresher else ""),
-            "Duplicate deal ids found. Which row should win?",
+            f"{len(dupes)} {_dup_what}; policy = {dedupe_policy}"+(f"; {len(fresher)} discarded row is FRESHER than the kept one" if fresher else ""),
+            ("Duplicate deal ids found. Which row should win?" if "deal_id" in mapping else "Some rows are exact duplicates — each is counted ONCE. Which row should win?"),
             ["Keep first","Keep most recently touched"],"dedupe_policy",[],
             "Confirm the dedupe policy.",
             choices_values=["keep-first","most_recent"],emit="scalar")
@@ -1074,22 +1093,22 @@ def main():
     if no_last_activity:
         add_issue("no_last_activity","fyi",[1],f"{no_last_activity} open deal(s) have no last-activity date","","","",[],
             "Cannot assess these for staleness.")
-    # D3: stage-assumption disclosure. When the panel is already asking about unreadable stages
-    # (unrecognised_stages blocker present), also DISCLOSE every fuzzy stage GUESS the engine made
-    # (raw text != the canonical it booked), so nothing is silently booked at Proposal/Negotiation
-    # while the interim headline claims "kept in Discovery". Gated on the blocker so confidently-casual
-    # pipelines (personas 1-2) are not nagged. Mappable via the same stage_map override key.
-    if unrec:
-        assum={}
-        for d in open_oneoff:
-            ra=d.get("stage_assumed")
-            if ra: assum.setdefault(str(ra).strip(),{"canon":d["final_stage"],"n":0}); assum[str(ra).strip()]["n"]+=1
-        if assum:
-            saw="; ".join(f"“{k}” → {v['canon']} ({v['n']} deal(s))" for k,v in assum.items())
-            add_issue("stage_assumptions","fyi",[1],
-                f"stage guesses I made from non-standard wording: {saw}. Correct any via stage_map.",
-                "","","stage_map",[],
-                "These are best-effort guesses from free-text stage labels; confirm or remap.")
+    # D3: stage-assumption disclosure — ALWAYS, not just when an unrecognised_stages blocker is
+    # present. The old gate meant "Qualified"→Demo(40%) / "Proposal Sent"→Proposal(60%) could drive
+    # the weighted headline with zero disclosure on an otherwise-clean file (cold-run 31 Aug 2026,
+    # run 26): the exact silent-figure failure this engine exists to prevent. It stays an FYI —
+    # non-blocking, one line — so confidently-casual pipelines are informed, not nagged.
+    # Mappable via the same stage_map override key.
+    assum={}
+    for d in open_oneoff:
+        ra=d.get("stage_assumed")
+        if ra: assum.setdefault(str(ra).strip(),{"canon":d["final_stage"],"n":0}); assum[str(ra).strip()]["n"]+=1
+    if assum:
+        saw="; ".join(f"“{k}” → {v['canon']} ({v['n']} deal(s))" for k,v in assum.items())
+        add_issue("stage_assumptions","fyi",[1],
+            f"stage guesses I made from non-standard wording: {saw}. Correct any via stage_map.",
+            "","","stage_map",[],
+            "These are best-effort guesses from free-text stage labels; confirm or remap.")
     # D5: surface the re-key netting as an FYI so the band's raw new/gone count is honestly qualified.
     if diff and diff.get("rekey"):
         rk=diff["rekey"]

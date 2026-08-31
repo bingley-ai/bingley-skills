@@ -1,7 +1,7 @@
 {
   "name": "sales-brain-setup",
   "displayName": "AI Sales Brain Setup",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Five-question onboarding that builds your AI sales brain, so every other Bingley skill wakes up knowing who you are.",
   "author": {
     "name": "Bingley"
