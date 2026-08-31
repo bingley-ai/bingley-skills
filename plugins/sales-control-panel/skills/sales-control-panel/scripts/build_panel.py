@@ -31,6 +31,7 @@ def warn(s): warnings.append(s); report_lines.append("WARNING: "+s)
 issues=[]
 PROB_CLAMPED=[]   # out-of-range probabilities, clamped to [0,1]
 UNPARSED_VALUES=[]  # (csv line, raw text) for non-empty deal values that parsed to nothing
+NEGATIVE_VALUES=[]  # (csv line, raw text) for deal values that parsed to a NEGATIVE number
 def add_issue(rule,severity,csv_lines,saw,question,choices,override_key,affects,proposed_fix,assumed="",
               choices_values=None,emit="scalar",raw_stage=None,title=None):
     # choices_values: machine value per display choice (parallel to `choices`) so the fix page can
@@ -583,6 +584,12 @@ def main():
         val,cur,suf=parse_amount(vraw)
         if val is None and str(vraw if vraw is not None else "").strip().lower() not in ("","nan","n/a","-","tbd","?"):
             UNPARSED_VALUES.append((line,str(vraw)[:40]))
+        # A negative deal value is almost always a data error (or a credit/refund miskeyed as a deal).
+        # It was summing into the pipeline silently — the same confident-silent-number class the engine
+        # exists to prevent (cold-run round 3, 31 Aug 2026). Flag it; still count it as-is so the total
+        # stays honest to the file, exactly like the TBC/unparseable path.
+        if val is not None and val < 0:
+            NEGATIVE_VALUES.append((line,str(vraw)[:40]))
         if val is not None and millions_scale and not suf and not aum_suspect:
             val*=1_000_000
         # AUM path
@@ -741,6 +748,10 @@ def main():
         add_issue("unparseable_values","warning",[l for l,_ in UNPARSED_VALUES],
             f"{len(UNPARSED_VALUES)} deal value(s) I could not read as a number (e.g. {UNPARSED_VALUES[0][1]!r}) — they count as £0 until fixed",
             "","","unparseable_values",[],"Type the value as a plain number in the deals file (e.g. 12000, 12k).")
+    if NEGATIVE_VALUES:
+        add_issue("negative_values","warning",[l for l,_ in NEGATIVE_VALUES],
+            f"{len(NEGATIVE_VALUES)} deal value(s) are negative (e.g. {NEGATIVE_VALUES[0][1]!r}) — counted as-is for now, which drags the pipeline down. Usually a typo or a credit miskeyed as a deal.",
+            "","","negative_values",[],"Fix the value in the deals file, or remove the row if it isn't a real open deal.")
     if PROB_CLAMPED:
         add_issue("probability_out_of_range","fyi",[1],
             f"{len(PROB_CLAMPED)} probability value(s) outside 0-100% (e.g. {PROB_CLAMPED[0]!r}) were clamped into range",

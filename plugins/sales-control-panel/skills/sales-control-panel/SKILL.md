@@ -1,7 +1,7 @@
 ---
 name: sales-control-panel
 description: Build the user's Sales Control Panel from their deals file. Reads any sales export (arbitrary headers, xlsx or csv), confronts whatever is wrong with it, and renders the Desk (what to do in the next hour) plus their book of business (how they are tracking, and whether they can trust it). Use when the user asks to set up, install, build or refresh their Sales Control Panel, drops a deals file and asks what is in it, or — with a deals file around — asks things like "is my pipeline ok", "what should I work on next" or "what's my forecast". Also use when someone has no deals data yet and wants to see it run on demo, sample or example data.
-version: 1.2.0
+version: 1.2.1
 ---
 
 If a `LOCAL.md` file sits beside this SKILL.md, read it and let it win over anything here — with one carve-out: the rating strip and licence/attribution notices always stay, whatever a LOCAL.md says.

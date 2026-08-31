@@ -1,8 +1,15 @@
 # Releases
 
 Each skill is now its own plugin and versions independently. Current versions:
-**cold-email-builder 1.0.1** · company-researcher 1.0.1 · list-builder-apollo 1.0.1 ·
-sales-advisory-board 1.0.0 · sales-brain-setup 1.0.1 · sales-control-panel 1.2.0.
+cold-email-builder 1.0.1 · company-researcher 1.0.1 · list-builder-apollo 1.0.1 ·
+sales-advisory-board 1.0.0 · sales-brain-setup 1.0.1 · **sales-control-panel 1.2.1**.
+
+## sales-control-panel v1.2.1 — 31 Aug 2026
+
+- **Negative deal values are now flagged, not silently summed.** A deal with a negative amount
+  (a typo, or a credit miskeyed as a deal) used to drag your pipeline down with no warning. It's
+  now surfaced like any other data-quality issue — counted as-is so the total stays honest to your
+  file, but you're told and can fix it.
 
 ## cold-email-builder v1.0.1 — 31 Aug 2026
 
