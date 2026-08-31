@@ -1,7 +1,7 @@
 {
   "name": "cold-email-builder",
   "displayName": "Cold Email Builder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Builds a cold email for you, or grades and rebuilds the one you have, on a rubric calibrated against real reply outcomes.",
   "author": {
     "name": "Bingley"

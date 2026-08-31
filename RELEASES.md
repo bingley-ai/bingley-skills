@@ -1,8 +1,16 @@
 # Releases
 
 Each skill is now its own plugin and versions independently. Current versions:
-cold-email-builder 1.0.0 · **company-researcher 1.0.1** · **list-builder-apollo 1.0.1** ·
-sales-advisory-board 1.0.0 · **sales-brain-setup 1.0.1** · **sales-control-panel 1.2.0**.
+**cold-email-builder 1.0.1** · company-researcher 1.0.1 · list-builder-apollo 1.0.1 ·
+sales-advisory-board 1.0.0 · sales-brain-setup 1.0.1 · sales-control-panel 1.2.0.
+
+## cold-email-builder v1.0.1 — 31 Aug 2026
+
+- **Fixes a cross-skill glitch found in testing.** When you set up your sales brain first and then
+  built an email, the email could pick up an internal "what to do next" note (like "write/fix your
+  cold email") and use it as the email's call-to-action. Now the builder treats that field as a
+  hint only and always writes a proper reader-facing CTA. You'd have caught it in the draft anyway
+  (nothing is ever sent for you), but now it won't happen.
 
 ## sales-control-panel v1.2.0 — 31 Aug 2026
 
