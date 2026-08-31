@@ -1,0 +1,17 @@
+{
+  "name": "company-researcher",
+  "displayName": "Company Researcher",
+  "version": "1.0.0",
+  "description": "Researches companies \u2014 one or four thousand \u2014 into ranked cheat sheets: what they do, why now, the angle to use.",
+  "author": {
+    "name": "Bingley"
+  },
+  "homepage": "https://bingley.ai",
+  "license": "MIT",
+  "keywords": [
+    "sales",
+    "research",
+    "prospecting",
+    "qualification"
+  ]
+}

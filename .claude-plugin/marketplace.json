@@ -1,13 +1,49 @@
 {
   "name": "bingley-skills",
   "owner": {
-    "name": "Bingley"
+    "name": "Bingley",
+    "url": "https://bingley.ai"
   },
+  "description": "Free AI sales skills by Bingley \u2014 install only the ones you want.",
   "plugins": [
     {
-      "name": "bingley-sales",
-      "source": "./plugins/bingley-sales",
-      "description": "Six free AI sales skills by Bingley: cold email building and grading, company research at any scale, Apollo list building, a sales advisory board, a sales control panel, and the shared sales brain that powers them."
+      "name": "cold-email-builder",
+      "source": "./plugins/cold-email-builder",
+      "description": "Builds a cold email for you, or grades and rebuilds the one you have, on a rubric calibrated against real reply outcomes.",
+      "category": "sales"
+    },
+    {
+      "name": "company-researcher",
+      "source": "./plugins/company-researcher",
+      "description": "Researches companies \u2014 one or four thousand \u2014 into ranked cheat sheets: what they do, why now, the angle to use.",
+      "category": "sales"
+    },
+    {
+      "name": "list-builder-apollo",
+      "source": "./plugins/list-builder-apollo",
+      "description": "End-to-end prospecting on a connected Apollo account. Every credit spend sits behind its own explicit confirm.",
+      "category": "sales"
+    },
+    {
+      "name": "sales-advisory-board",
+      "source": "./plugins/sales-advisory-board",
+      "description": "Eight sales greats argue one real sales decision over two rounds and hand down a verdict \u2014 every quote verbatim and cited.",
+      "category": "sales"
+    },
+    {
+      "name": "sales-control-panel",
+      "source": "./plugins/sales-control-panel",
+      "description": "Reads any deals export and renders your desk: what to do in the next hour, and whether your pipeline can be trusted.",
+      "category": "sales"
+    },
+    {
+      "name": "sales-brain-setup",
+      "source": "./plugins/sales-brain-setup",
+      "description": "Five-question onboarding that builds your AI sales brain, so every other Bingley skill wakes up knowing who you are.",
+      "category": "sales"
     }
-  ]
+  ],
+  "renames": {
+    "bingley-sales": null
+  }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "sales-advisory-board",
+  "displayName": "Sales Advisory Board",
+  "version": "1.0.0",
+  "description": "Eight sales greats argue one real sales decision over two rounds and hand down a verdict \u2014 every quote verbatim and cited.",
+  "author": {
+    "name": "Bingley"
+  },
+  "homepage": "https://bingley.ai",
+  "license": "MIT",
+  "keywords": [
+    "sales",
+    "decisions",
+    "advice",
+    "negotiation"
+  ]
+}

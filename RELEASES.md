@@ -1,5 +1,22 @@
 # Releases
 
+Each skill is now its own plugin and versions independently. Current versions:
+cold-email-builder 1.0.0 · company-researcher 1.0.0 · list-builder-apollo 1.0.0 ·
+sales-advisory-board 1.0.0 · sales-brain-setup 1.0.0 · **sales-control-panel 1.1.0**.
+
+## sales-control-panel v1.1.0 — 31 Aug 2026
+
+- **Demo mode.** No CRM export yet? Say "build my sales panel with demo data" and it writes a
+  clearly labelled sample pipeline (dated today, never stale) and builds the full panel from it —
+  meetings, commitments and all. Point it at your own export whenever you're ready.
+- No more dead end on first run without a deals file.
+
+## Marketplace restructure — 31 Aug 2026
+
+The single "bingley-sales" bundle is now six standalone plugins in this marketplace. Install
+only what you want; each updates on its own. If you had the old bundle installed, remove it
+and install the skills you use from the marketplace list — same skills, better updates.
+
 ## v1.0.0 — 22 Aug 2026
 
 First public release of the Bingley Sales plugin: the same six skills previously shipped

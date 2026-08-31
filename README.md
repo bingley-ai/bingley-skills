@@ -1,8 +1,9 @@
-# Bingley Sales — free AI sales skills
+# Bingley — free AI sales skills
 
-Six skills for Claude (Cowork / Claude desktop, Claude Code) that do real sales work:
+Six skills for Claude (Cowork / Claude desktop, Claude Code) that do real sales work.
+Each one is its own plugin — install only the ones you want.
 
-| Skill | What it does |
+| Plugin | What it does |
 |---|---|
 | **cold-email-builder** | Builds a cold email for you, or grades and rebuilds the one you have, on a rubric calibrated against real reply outcomes. |
 | **company-researcher** | Researches companies — one or four thousand — into ranked cheat sheets: what they do, why now, the angle to use. |
@@ -13,22 +14,23 @@ Six skills for Claude (Cowork / Claude desktop, Claude Code) that do real sales 
 
 ## Install
 
-Easiest: the one-button installers at **[bingley.ai](https://bingley.ai)**.
+Easiest: the guided installers at **[bingley.ai](https://bingley.ai)**.
 
 By hand, in the Claude desktop app: Settings → Plugins → Add marketplace → paste
-`bingley-ai/bingley-skills` → install **Bingley Sales**.
+`bingley-ai/bingley-skills` → install the skills you want. Each installs and updates
+on its own; none requires the others.
 
 ## First thing to type
 
-Say **"get me started"** — five quick questions teach every skill who you are and what you sell.
-Then try **"write me a cold email"**, **"research [a company]"**, or drop your deals spreadsheet in
-and ask **"is my pipeline ok"**.
+Say **"get me started"** — five quick questions teach every installed skill who you are and
+what you sell. Then try **"write me a cold email"**, **"research [a company]"**, or drop your
+deals spreadsheet in and ask **"is my pipeline ok"**.
 
 ## Updates
 
-Skills tell you in their output when a newer version exists. Until Cowork's marketplace
-sync is reliable (known platform bugs), the dependable refresh is: remove the plugin,
-remove the marketplace, re-add both. Current version: see `RELEASES.md`.
+Each skill tells you in its output when a newer version of itself exists, and each updates
+independently — see `RELEASES.md` for current versions. If the marketplace Update button
+misbehaves (known platform bugs), the dependable refresh is: remove that plugin, re-add it.
 
 ## Customising
 
@@ -36,7 +38,7 @@ Ask Claude: *"create a LOCAL.md for [skill name] that always signs my emails as 
 
 ## Removing it
 
-Settings → Plugins → remove the plugin (and the marketplace, if you're done with it). Your own
+Settings → Plugins → remove any plugin (and the marketplace, if you're done with it). Your own
 data stays on your machine — the profile, ledger and any rendered pages live in your working
 folder under `Claude HQ/`; delete that folder too if you want nothing left behind.
 
@@ -45,7 +47,7 @@ folder under `Claude HQ/`; delete that folder too if you want nothing left behin
 These skills are free. Their HTML outputs carry a small "built by Bingley" rating strip
 linking back to bingley.ai — that's the whole business model. There is no usage tracking of any kind in these
 skills, and no data about you ever leaves your machine. The one outbound call a skill makes
-is a version check against this repo's own `plugin.json` at the end of a run (nothing sent,
+is a version check against its own `plugin.json` in this repo at the end of a run (nothing sent,
 nothing identifying, silent if offline) — that is how a skill can tell you an update exists.
 
 ## Licence

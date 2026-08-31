@@ -1,0 +1,17 @@
+{
+  "name": "list-builder-apollo",
+  "displayName": "List Builder: Apollo",
+  "version": "1.0.0",
+  "description": "End-to-end prospecting on a connected Apollo account. Every credit spend sits behind its own explicit confirm.",
+  "author": {
+    "name": "Bingley"
+  },
+  "homepage": "https://bingley.ai",
+  "license": "MIT",
+  "keywords": [
+    "sales",
+    "prospecting",
+    "apollo",
+    "lead-lists"
+  ]
+}

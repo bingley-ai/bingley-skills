@@ -1,7 +1,7 @@
 ---
 name: sales-control-panel
-description: Build the user's Sales Control Panel from their deals file. Reads any sales export (arbitrary headers, xlsx or csv), confronts whatever is wrong with it, and renders the Desk (what to do in the next hour) plus their book of business (how they are tracking, and whether they can trust it). Use when the user asks to set up, install, build or refresh their Sales Control Panel, drops a deals file and asks what is in it, or — with a deals file around — asks things like "is my pipeline ok", "what should I work on next" or "what's my forecast".
-version: 1.0.0
+description: Build the user's Sales Control Panel from their deals file. Reads any sales export (arbitrary headers, xlsx or csv), confronts whatever is wrong with it, and renders the Desk (what to do in the next hour) plus their book of business (how they are tracking, and whether they can trust it). Use when the user asks to set up, install, build or refresh their Sales Control Panel, drops a deals file and asks what is in it, or — with a deals file around — asks things like "is my pipeline ok", "what should I work on next" or "what's my forecast". Also use when someone has no deals data yet and wants to see it run on demo, sample or example data.
+version: 1.1.0
 ---
 
 If a `LOCAL.md` file sits beside this SKILL.md, read it and let it win over anything here — with one carve-out: the rating strip and licence/attribution notices always stay, whatever a LOCAL.md says.
@@ -45,6 +45,31 @@ The engine needs `python3` with `pandas` + `openpyxl` — present in Cowork's sa
 
 **Read `ingest-report.md` after every run.** It is the engine explaining itself. If you are about to tell the user something about their data, it came from there or from `summary.json`, not from your own reading of the file.
 
+## Demo mode (they have no data yet)
+
+If the user has no deals file, or asks to see it run on demo, sample or example data, do not
+hunt for a file and do not seed anything by hand. Run the generator that ships with this skill:
+
+```bash
+python3 scripts/make_demo_data.py --out <the user's folder>
+```
+
+It writes `SAMPLE-deals.xlsx`, `SAMPLE-meetings.xlsx` and `SAMPLE-commitments.xlsx`, every date
+computed from today, so the demo reads as live whenever it is run and never needs re-cutting.
+Then build from all three exactly as you would from real files, passing `--meetings` and
+`--commitments` as well as `--deals`. Loop step 3 onwards is unchanged; the demo data raises no
+blockers, so the panel builds in one pass.
+
+When you hand a demo panel over, say two things and stop: these are sample figures rather than
+theirs, and to run it on their own numbers they point the skill at any CRM export. Leave the
+`SAMPLE-` files where they are, they are the user's to keep or bin.
+
+**This is not a hole in "do not mock, seed or demo-fill" below.** That rule forbids the panel
+inventing content inside a build from someone's real pipeline. Demo mode writes a real, plainly
+labelled sample file and the engine ingests it as honestly as it ingests any export, every figure
+computed, nothing fabricated at render time. The two never mix: if a real deals file is present,
+never top it up with demo rows.
+
 ## The two surfaces
 
 **Desk (default tab) — the next hour.** Hero (greeting, chips, issues chip), Today's plan (ranked, seeded from overdue commitments + top stale + closing-stage deals), Today's meetings, Pipeline headline + stage bars, At-risk + top-5 stale. Fixed stage, never scrolls, capped lists always disclose their tail.
@@ -57,7 +82,7 @@ Scope note (16 Jul): cash runway, a renewals section, a forecast-category sectio
 
 ## The loop you actually run
 
-1. **Find the file.** Ask where their deals data is if it is not obvious. One question, one `AskUserQuestion` call.
+1. **Find the file.** Ask where their deals data is if it is not obvious. One question, one `AskUserQuestion` call. If they have not got one, go to Demo mode above rather than leaving them stuck.
 2. **Run the engine.** Cold, no overrides, first pass. If it exits non-zero, read the error and tell the user in plain English what is wrong with their file (missing, unreadable, not a real xlsx/csv, a legacy `.xls` that needs re-saving as `.xlsx`). Do not retry by cleaning or altering their file — rule 4 below forbids it.
 3. **Read `issues.json`.** Blockers first, then warnings, then FYIs.
 4. **Ask the blockers conversationally.** Each issue carries `question`, `choices`, `saw` and `csv_lines` already written in plain English. Ask them as they are. Never show the user JSON, never ask them to edit a file, never invent a question the engine did not raise.
@@ -89,7 +114,7 @@ Only ever write a key the engine asked for. Each issue names its own `override_k
 
 1. **Do not hand-write the panel HTML.** It is `panel-shell.html` + `render.js.html` + `modal.css.html`, rendered by the engine. Editing the output by hand breaks the next rebuild.
 2. **Do not compute a figure.** Every number the user sees comes from the engine. If you need one, read `summary.json`.
-3. **Do not mock, seed or demo-fill.** Earlier versions of this skill shipped mock meetings, mock call summaries and mock emails behind a "Demo data" tag. That is gone, and it is not coming back: a panel that invents plausible content is the exact failure this engine exists to prevent. An empty section says it is empty and says what would fill it.
+3. **Do not mock, seed or demo-fill.** Earlier versions of this skill shipped mock meetings, mock call summaries and mock emails behind a "Demo data" tag. That is gone, and it is not coming back: a panel that invents plausible content is the exact failure this engine exists to prevent. An empty section says it is empty and says what would fill it. (Demo mode above is the one sanctioned route to sample figures, and it works by writing a labelled sample file the engine then reads normally, never by filling gaps at render time.)
 4. **Do not clean the user's file first.** See above.
 5. **Do not edit `panel-shell.html`.** It is the shared desk shell and is swapped wholesale. Room content and logic live in `render.js.html` / `modal.css.html`. Read `scripts/LAYOUT-CONTRACT.md` before touching any of them.
 6. **Do not answer a blocker on the user's behalf**, however obvious it looks.
@@ -145,4 +170,4 @@ Then run `/skill-test` as the launch gate.
 ## Version stamp + update check (house rule)
 
 1. **Stamp.** The close-out of every run states this skill's name and version, read from the `version:` frontmatter at the top of this file (e.g. "sales-control-panel v1.0.0").
-2. **Update check — best-effort, never blocking, at most once per conversation.** After the deliverable is produced, if web access is available in the session, fetch <https://raw.githubusercontent.com/bingley-ai/bingley-skills/main/plugins/bingley-sales/.claude-plugin/plugin.json> (give it ~5 seconds, then move on) and compare its `version` field to this file's `version:`. If they differ AND no update line has already appeared earlier in this conversation (from this or any sibling skill), append exactly one line to the close-out: "A newer version of this skill is out — get the update at bingley.ai." On later runs in the same conversation, skip the line even if versions still differ. If the fetch fails, times out, or the session has no web access: append nothing and never mention the check. The deliverable is never delayed or blocked by this step.
+2. **Update check — best-effort, never blocking, at most once per conversation.** After the deliverable is produced, if web access is available in the session, fetch <https://raw.githubusercontent.com/bingley-ai/bingley-skills/main/plugins/sales-control-panel/.claude-plugin/plugin.json> (give it ~5 seconds, then move on) and compare its `version` field to this file's `version:`. If they differ AND no update line has already appeared earlier in this conversation (from this or any sibling skill), append exactly one line to the close-out: "A newer version of this skill is out — get the update at bingley.ai." On later runs in the same conversation, skip the line even if versions still differ. If the fetch fails, times out, or the session has no web access: append nothing and never mention the check. The deliverable is never delayed or blocked by this step.
