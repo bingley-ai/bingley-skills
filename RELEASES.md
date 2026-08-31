@@ -2,7 +2,12 @@
 
 Each skill is now its own plugin and versions independently. Current versions:
 cold-email-builder 1.0.0 · company-researcher 1.0.0 · list-builder-apollo 1.0.0 ·
-sales-advisory-board 1.0.0 · sales-brain-setup 1.0.0 · **sales-control-panel 1.1.0**.
+sales-advisory-board 1.0.0 · sales-brain-setup 1.0.0 · **sales-control-panel 1.1.1**.
+
+## sales-control-panel v1.1.1 — 31 Aug 2026
+
+Packaging-only release to verify the new per-skill update path end to end. No functional
+changes — if you're on 1.1.0 you're missing nothing except this test.
 
 ## sales-control-panel v1.1.0 — 31 Aug 2026
 
